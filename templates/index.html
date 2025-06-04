@@ -802,73 +802,95 @@
         }
 
         // Type message with animation - MUCH FASTER NOW
-        async function typeMessage(container, message, abortSignal) {
-            // Check if message contains code blocks
-            const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g;
-            const parts = [];
-            let lastIndex = 0;
-            let match;
+       async function typeMessage(container, message, abortSignal) {
+    // Improved code block detection that handles language specification
+    const codeBlockRegex = /```(\w*)\n([\s\S]*?)\n```/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
 
-            while ((match = codeBlockRegex.exec(message)) !== null) {
-                // Add text before code block
-                if (match.index > lastIndex) {
-                    parts.push({
-                        type: 'text',
-                        content: message.slice(lastIndex, match.index)
-                    });
-                }
-                
-                // Add code block
-                parts.push({
-                    type: 'code',
-                    language: match[1] || '',
-                    content: match[2]
-                });
-                
-                lastIndex = match.index + match[0].length;
-            }
-            
-            // Add remaining text
-            if (lastIndex < message.length) {
-                parts.push({
-                    type: 'text',
-                    content: message.slice(lastIndex)
-                });
-            }
-            
-            // If no code blocks found, treat as single text part
-            if (parts.length === 0) {
-                parts.push({
-                    type: 'text',
-                    content: message
-                });
-            }
-            
-            // Render each part
-            for (const part of parts) {
-                if (abortSignal && abortSignal.aborted) return;
-                
-                if (part.type === 'code') {
-                    const codeContainer = document.createElement('div');
-                    codeContainer.className = 'code-container';
-                    codeContainer.innerHTML = `
-                        <pre><code class="typing-code"></code></pre>
-                        <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
-                    `;
-                    
-                    container.appendChild(codeContainer);
-                    const codeElement = codeContainer.querySelector('.typing-code');
-                    
-                    // Type code with cursor - MUCH FASTER
-                    await typeCode(codeElement, part.content, abortSignal);
-                } else {
-                    // Handle regular text - MUCH FASTER
-                    const textSpan = document.createElement('span');
-                    container.appendChild(textSpan);
-                    await typeText(textSpan, part.content.replace(/\n/g, '<br>'), 3, abortSignal); // Reduced from 15ms to 3ms
-                }
-            }
+    while ((match = codeBlockRegex.exec(message)) !== null) {
+        // Add text before code block
+        if (match.index > lastIndex) {
+            parts.push({
+                type: 'text',
+                content: message.slice(lastIndex, match.index)
+            });
         }
+        
+        // Add code block with language
+        parts.push({
+            type: 'code',
+            language: match[1] || '',
+            content: match[2].trim() // Trim to remove any extra newlines
+        });
+        
+        lastIndex = match.index + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < message.length) {
+        parts.push({
+            type: 'text',
+            content: message.slice(lastIndex)
+        });
+    }
+    
+    // If no code blocks found, treat as single text part
+    if (parts.length === 0) {
+        parts.push({
+            type: 'text',
+            content: message
+        });
+    }
+    
+    // Render each part
+    for (const part of parts) {
+        if (abortSignal && abortSignal.aborted) return;
+        
+        if (part.type === 'code') {
+            const codeContainer = document.createElement('div');
+            codeContainer.className = 'code-container';
+            
+            // Create pre and code elements
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            code.className = `language-${part.language || 'text'}`;
+            
+            // Add copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = function() { copyCode(this); };
+            
+            // Add cursor for typing effect
+            const cursor = document.createElement('span');
+            cursor.className = 'typing-cursor';
+            
+            // Assemble the elements
+            pre.appendChild(code);
+            code.appendChild(cursor);
+            codeContainer.appendChild(pre);
+            codeContainer.appendChild(copyBtn);
+            container.appendChild(codeContainer);
+            
+            // Type the code content
+            await typeCode(code, part.content, abortSignal);
+            
+            // Remove cursor after typing is complete
+            setTimeout(() => {
+                if (cursor.parentNode) {
+                    cursor.remove();
+                }
+            }, 500);
+        } else {
+            // Handle regular text
+            const textSpan = document.createElement('span');
+            container.appendChild(textSpan);
+            await typeText(textSpan, part.content.replace(/\n/g, '<br>'), 3, abortSignal);
+        }
+    }
+}
 
         async function typeText(element, text, speed = 3, abortSignal) { // Much faster - was 15ms, now 3ms
             // Handle HTML content (like <br> tags)
