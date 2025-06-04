@@ -2,777 +2,1343 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="shortcut icon" type="image/png" href="favicon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RyVibing AI</title>
+    <title>Ryan AI - Advanced Coding Assistant</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-dark.min.css" rel="stylesheet" id="prism-dark-theme" disabled>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Enhanced styles for better large code handling */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        * {
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            box-sizing: border-box;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #f1f3f4;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #888888;
+            --border-color: #e5e7eb;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #262626;
+            --text-primary: #f5f5f5;
+            --text-secondary: #d4d4d4;
+            --text-muted: #a3a3a3;
+            --border-color: #404040;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success-color: #22c55e;
+            --warning-color: #fbbf24;
+            --error-color: #f87171;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .app-container {
+            display: flex;
             height: 100vh;
+            max-width: 100vw;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
+            transition: all 0.3s ease;
         }
 
-        #chat-box {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
+        .sidebar.collapsed {
+            width: 60px;
+        }
+
+        .sidebar-header {
             padding: 20px;
-            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .sidebar-menu {
+            flex: 1;
+            padding: 20px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 8px;
+        }
+
+        .menu-item:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .menu-item.active {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-primary);
+        }
+
+        .main-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background-color: var(--bg-tertiary);
+            border-color: var(--accent-color);
+        }
+
+        .btn.primary {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        .btn.primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Chat Area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages-container {
+            flex: 1;
             overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            max-height: calc(100vh - 200px);
+            padding: 20px 24px;
+            scroll-behavior: smooth;
         }
 
         .message {
+            margin-bottom: 24px;
             display: flex;
-            margin-bottom: 20px;
-            align-items: flex-start;
-            gap: 15px;
+            gap: 16px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
         }
 
         .message.user {
-            flex-direction: row-reverse;
+            justify-content: flex-end;
         }
 
-        .avatar {
-            width: 40px;
-            height: 40px;
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
             flex-shrink: 0;
         }
 
-        .user-avatar {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+        .message.user .message-avatar {
+            background-color: var(--accent-color);
+            color: white;
         }
 
-        .bot-avatar {
-            background: linear-gradient(135deg, #f093fb, #f5576c);
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #8b5cf6, var(--accent-color));
+            color: white;
         }
 
         .message-content {
-            background: #f8f9fa;
-            padding: 15px 20px;
-            border-radius: 15px;
-            max-width: calc(100% - 80px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            line-height: 1.6;
+            flex: 1;
+            background-color: var(--bg-secondary);
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            position: relative;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background-color: var(--accent-color);
             color: white;
+            border-color: var(--accent-color);
         }
 
-        /* Enhanced text rendering for AI responses */
-        .bot-response {
-            white-space: pre-wrap;
+        .message-text {
+            line-height: 1.6;
             word-wrap: break-word;
         }
 
-        .bot-response p {
-            margin: 0 0 15px 0;
+        .message-text h1, .message-text h2, .message-text h3 {
+            margin: 16px 0 8px 0;
+            color: var(--text-primary);
         }
 
-        .bot-response p:last-child {
-            margin-bottom: 0;
+        .message.user .message-text h1,
+        .message.user .message-text h2,
+        .message.user .message-text h3 {
+            color: white;
         }
 
-        /* ENHANCED CODE BLOCK STYLING FOR LARGE CODE */
-        .code-container {
+        .message-text p {
+            margin-bottom: 12px;
+        }
+
+        .message-text ul, .message-text ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+
+        .message-text li {
+            margin-bottom: 4px;
+        }
+
+        .message-actions {
+            position: absolute;
+            top: -8px;
+            right: 12px;
+            display: none;
+            gap: 4px;
+        }
+
+        .message:hover .message-actions {
+            display: flex;
+        }
+
+        .action-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        /* Code Blocks */
+        .code-block {
             position: relative;
-            margin: 15px 0;
-            background: #1e1e1e;
+            margin: 16px 0;
             border-radius: 8px;
-            border: 1px solid #333;
             overflow: hidden;
-            max-width: 100%;
+            border: 1px solid var(--border-color);
         }
 
-        .code-container pre {
-            margin: 0;
-            padding: 20px;
-            background: #1e1e1e;
-            color: #d4d4d4;
-            font-family: 'Courier New', Consolas, 'Liberation Mono', monospace;
-            font-size: 13px;
-            line-height: 1.5;
+        .code-header {
+            background-color: var(--bg-tertiary);
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .code-content {
+            background-color: var(--bg-secondary);
             overflow-x: auto;
-            max-height: 600px;
-            overflow-y: auto;
-            white-space: pre;
-            word-wrap: normal;
         }
 
-        .code-container code {
-            font-family: inherit;
-            font-size: inherit;
-            color: inherit;
-            background: none;
-            padding: 0;
-            white-space: pre;
-            word-spacing: normal;
-            word-break: normal;
-            word-wrap: normal;
-            tab-size: 4;
+        .code-content pre {
+            margin: 0;
+            padding: 16px;
+            background: none !important;
         }
 
         .copy-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 5px 10px;
-            border-radius: 4px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
             cursor: pointer;
-            font-size: 12px;
-            transition: all 0.2s;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
         }
 
         .copy-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
         }
 
-        /* COLLAPSE/EXPAND FOR VERY LARGE CODE BLOCKS */
-        .code-container.large {
-            max-height: 400px;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .code-container.expanded {
-            max-height: none;
-        }
-
-        .expand-btn {
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 123, 255, 0.8);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-            backdrop-filter: blur(10px);
-        }
-
-        .typing-cursor {
-            background: #007bff;
-            animation: blink 1s infinite;
-            width: 2px;
-            height: 1em;
-            display: inline-block;
-            margin-left: 2px;
-        }
-
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
-        }
-
-        .typing-indicator {
-            display: none;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 25px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .typing-indicator.show {
-            display: flex;
-        }
-
-        .dots {
-            display: flex;
-            gap: 3px;
-        }
-
-        .dot {
-            width: 8px;
-            height: 8px;
-            background: #007bff;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-
-        .dot:nth-child(2) { animation-delay: -0.32s; }
-        .dot:nth-child(3) { animation-delay: -0.16s; }
-
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
-
+        /* Input Area */
         .input-container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
         }
 
-        .input-section {
-            display: flex;
-            gap: 10px;
-            align-items: flex-end;
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
         }
 
-        #user-input {
-            flex: 1;
-            border: 2px solid #e9ecef;
-            border-radius: 25px;
-            padding: 12px 20px;
-            font-size: 16px;
-            outline: none;
+        .input-box {
+            width: 100%;
+            min-height: 50px;
+            max-height: 200px;
+            padding: 12px 60px 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             resize: none;
-            max-height: 120px;
-            font-family: inherit;
-            transition: border-color 0.2s;
+            font-size: 16px;
+            line-height: 1.5;
+            overflow-y: auto;
+            transition: all 0.2s ease;
         }
 
-        #user-input:focus {
-            border-color: #007bff;
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
-        button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+        .input-box::placeholder {
+            color: var(--text-muted);
+        }
+
+        .send-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            background-color: var(--accent-color);
             color: white;
             border: none;
-            border-radius: 25px;
-            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.2s;
-            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
         }
 
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        .send-btn:hover:not(:disabled) {
+            background-color: var(--accent-hover);
         }
 
-        button:disabled {
-            opacity: 0.6;
+        .send-btn:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
-            transform: none;
         }
 
-        .hidden {
-            display: none !important;
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
-        .scroll-control {
-            position: fixed;
-            bottom: 200px;
-            right: 30px;
-            background: rgba(0, 123, 255, 0.9);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 14px;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s;
-            backdrop-filter: blur(10px);
-            z-index: 1000;
+        /* Loading States */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 20px;
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
         }
 
-        .scroll-control.show {
-            opacity: 1;
-            transform: translateY(0);
+        .typing-dots {
+            display: flex;
+            gap: 4px;
         }
 
-        .welcome-message {
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--text-muted);
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            padding: 40px 20px;
-            color: #666;
+            padding: 40px;
         }
 
-        .welcome-message h2 {
-            color: #333;
-            margin-bottom: 10px;
+        .welcome-avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 24px;
         }
 
+        .welcome-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-color), #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .welcome-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .feature-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent-color);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .feature-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .feature-description {
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .container {
-                padding: 10px;
+            .sidebar {
+                width: 100%;
+                position: fixed;
+                top: 0;
+                left: -100%;
+                z-index: 1000;
+                transition: left 0.3s ease;
             }
-            
-            .message-content {
-                max-width: calc(100% - 60px);
+
+            .sidebar.open {
+                left: 0;
             }
-            
-            .code-container pre {
-                font-size: 12px;
-                padding: 15px;
+
+            .main-content {
+                width: 100%;
             }
+
+            .main-header {
+                padding: 16px;
+            }
+
+            .messages-container {
+                padding: 16px;
+            }
+
+            .input-container {
+                padding: 16px;
+            }
+
+            .welcome-screen {
+                padding: 20px;
+            }
+
+            .welcome-title {
+                font-size: 24px;
+            }
+
+            .welcome-features {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Dark mode specific prism theme */
+        [data-theme="dark"] .code-content pre[class*="language-"] {
+            background: var(--bg-tertiary) !important;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1 style="text-align: center; color: white; margin-bottom: 20px;">
-                🤖 RyVibing AI
-            </h1>
-        </div>
-        
-        <div id="chat-box">
-            <div class="welcome-message">
-                <h2>Welcome to RyVibing</h2>
-                <p>I'm here to help with coding, answer questions, or just chat! I can handle large code requests up to 2000 lines.</p>
+<body data-theme="light">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">R</div>
+                <div class="logo-text sidebar-text">Ryan AI</div>
             </div>
-            <div class="scroll-control" id="scroll-control">
-                📍 Scroll to follow
-            </div>
-        </div>
-        
-        <div class="input-container">
-            <div class="typing-indicator" id="typing-indicator">
-                <span>Ry is thinking</span>
-                <div class="dots">
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    <div class="dot"></div>
+            
+            <div class="sidebar-menu">
+                <div class="menu-item active" onclick="switchTab('chat')">
+                    <i class="fas fa-comments"></i>
+                    <span class="sidebar-text">Chat</span>
+                </div>
+                <div class="menu-item" onclick="switchTab('analyze')">
+                    <i class="fas fa-code"></i>
+                    <span class="sidebar-text">Code Analysis</span>
+                </div>
+                <div class="menu-item" onclick="showHistory()">
+                    <i class="fas fa-history"></i>
+                    <span class="sidebar-text">History</span>
+                </div>
+                <div class="menu-item" onclick="clearChat()">
+                    <i class="fas fa-trash"></i>
+                    <span class="sidebar-text">Clear Chat</span>
                 </div>
             </div>
             
-            <form id="chat-form">
-                <div class="input-section">
-                    <textarea id="user-input" placeholder="Ask for code, full applications, or anything else..." required rows="1"></textarea>
-                    <button type="submit" id="send-btn">
-                        Send →
+            <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()">
+                    <i class="fas fa-moon" id="theme-icon"></i>
+                    <span class="sidebar-text">Dark Mode</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="main-header">
+                <div class="header-title">
+                    <button class="btn" onclick="toggleSidebar()" style="display: none;" id="menu-btn">
+                        <i class="fas fa-bars"></i>
                     </button>
-                    <button type="button" id="stop-btn" class="hidden" style="background: #dc3545;">
-                        Stop ⏹
+                    Ryan AI
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn" onclick="exportChat()">
+                        <i class="fas fa-download"></i>
+                        Export
+                    </button>
+                    <button class="btn primary" onclick="clearChat()">
+                        <i class="fas fa-plus"></i>
+                        New Chat
                     </button>
                 </div>
-            </form>
+            </div>
+
+            <div class="chat-container" id="chat-tab">
+                <div class="messages-container" id="messages">
+                    <div class="welcome-screen" id="welcome-screen">
+                        <div class="welcome-avatar">R</div>
+                        <div class="welcome-title">Hey there! I'm Ryan 👋</div>
+                        <div class="welcome-subtitle">
+                            Your advanced AI coding assistant, ready to help you debug, optimize, create, and understand code like never before!
+                        </div>
+                        <div class="welcome-features">
+                            <div class="feature-card">
+                                <div class="feature-icon">
+                                    <i class="fas fa-bug"></i>
+                                </div>
+                                <div class="feature-title">Debug & Fix</div>
+                                <div class="feature-description">
+                                    I can analyze your code, identify bugs, and provide complete fixes with detailed explanations.
+                                </div>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">
+                                    <i class="fas fa-rocket"></i>
+                                </div>
+                                <div class="feature-title">Optimize Performance</div>
+                                <div class="feature-description">
+                                    Let me help you improve your code's efficiency, speed, and overall performance.
+                                </div>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">
+                                    <i class="fas fa-lightbulb"></i>
+                                </div>
+                                <div class="feature-title">Code Generation</div>
+                                <div class="feature-description">
+                                    I can create complete applications, functions, and scripts tailored to your exact needs.
+                                </div>
+                            </div>
+                            <div class="feature-card">
+                                <div class="feature-icon">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </div>
+                                <div class="feature-title">Learn & Understand</div>
+                                <div class="feature-description">
+                                    Get clear explanations of complex code concepts with examples and best practices.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="message-input" 
+                            class="input-box" 
+                            placeholder="Ask me anything about coding, paste your code for debugging, or describe what you want to build..."
+                            rows="1"
+                        ></textarea>
+                        <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="input-footer">
+                        <span>Ryan can help with debugging, optimization, code generation, and explanations</span>
+                        <span id="char-count">0 / 2000</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Code Analysis Tab (Hidden by default) -->
+            <div class="chat-container" id="analyze-tab" style="display: none;">
+                <div class="messages-container">
+                    <div style="max-width: 800px; margin: 0 auto; padding: 40px 20px;">
+                        <h2 style="margin-bottom: 20px;">Code Analysis Tool</h2>
+                        <div style="margin-bottom: 20px;">
+                            <label for="code-language" style="display: block; margin-bottom: 8px; font-weight: 600;">Language:</label>
+                            <select id="code-language" style="width: 200px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background-color: var(--bg-primary); color: var(--text-primary);">
+                                <option value="auto">Auto-detect</option>
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript</option>
+                                <option value="java">Java</option>
+                                <option value="cpp">C++</option>
+                                <option value="c">C</option>
+                                <option value="html">HTML</option>
+                                <option value="css">CSS</option>
+                                <option value="sql">SQL</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label for="code-textarea" style="display: block; margin-bottom: 8px; font-weight: 600;">Your Code:</label>
+                            <textarea 
+                                id="code-textarea" 
+                                style="width: 100%; height: 300px; padding: 16px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-primary); color: var(--text-primary); font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; resize: vertical;"
+                                placeholder="Paste your code here for analysis..."
+                            ></textarea>
+                        </div>
+                        <button class="btn primary" onclick="analyzeCode()">
+                            <i class="fas fa-search"></i>
+                            Analyze Code
+                        </button>
+                        <div id="analysis-result" style="margin-top: 20px;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        let isTyping = false;
-        let currentTypingController = null;
-        let autoScroll = true;
-        let userScrolledUp = false;
-        let lastScrollPosition = 0;
+        let currentTab = 'chat';
+        let isLoading = false;
+        let currentTheme = 'light';
 
-        const chatBox = document.getElementById("chat-box");
-        const scrollControl = document.getElementById("scroll-control");
-
-        // Enhanced scroll detection
-        chatBox.addEventListener('scroll', function() {
-            const scrollTop = chatBox.scrollTop;
-            const scrollHeight = chatBox.scrollHeight;
-            const clientHeight = chatBox.clientHeight;
+        // Theme Management
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', currentTheme);
             
-            if (scrollTop < lastScrollPosition) {
-                userScrolledUp = true;
-                autoScroll = false;
-                updateScrollControl();
-            } else if (scrollTop + clientHeight >= scrollHeight - 50) {
-                userScrolledUp = false;
-                autoScroll = true;
-                updateScrollControl();
-            }
+            const themeIcon = document.getElementById('theme-icon');
+            const prismDarkTheme = document.getElementById('prism-dark-theme');
             
-            lastScrollPosition = scrollTop;
-        });
-
-        function updateScrollControl() {
-            if (userScrolledUp && isTyping) {
-                scrollControl.classList.add('show');
+            if (currentTheme === 'dark') {
+                themeIcon.className = 'fas fa-sun';
+                prismDarkTheme.disabled = false;
             } else {
-                scrollControl.classList.remove('show');
+                themeIcon.className = 'fas fa-moon';
+                prismDarkTheme.disabled = true;
+            }
+            
+            localStorage.setItem('theme', currentTheme);
+        }
+
+        // Load saved theme
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                toggleTheme();
             }
         }
 
-        scrollControl.addEventListener('click', function() {
-            autoScroll = true;
-            userScrolledUp = false;
-            chatBox.scrollTop = chatBox.scrollHeight;
-            scrollControl.classList.remove('show');
-        });
-
-        function smartScroll() {
-            if (autoScroll && !userScrolledUp) {
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }
+        // Tab Management
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.menu-item').classList.add('active');
+            
+            // Show/hide tabs
+            document.getElementById('chat-tab').style.display = tab === 'chat' ? 'flex' : 'none';
+            document.getElementById('analyze-tab').style.display = tab === 'analyze' ? 'flex' : 'none';
         }
 
-        // Auto-resize textarea
-        const textarea = document.getElementById("user-input");
-        textarea.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
+        // Sidebar Management
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
 
-        // Stop button functionality
-        document.getElementById("stop-btn").addEventListener("click", function() {
-            if (isTyping && currentTypingController) {
-                currentTypingController.abort();
-                const sendBtn = document.getElementById("send-btn");
-                const stopBtn = document.getElementById("stop-btn");
-                const typingIndicator = document.getElementById("typing-indicator");
-                
-                sendBtn.disabled = false;
-                sendBtn.classList.remove('hidden');
-                stopBtn.classList.add('hidden');
-                typingIndicator.classList.remove('show');
-                isTyping = false;
-                currentTypingController = null;
-                scrollControl.classList.remove('show');
-                
-                const stoppedMessageEl = document.createElement('div');
-                stoppedMessageEl.className = 'message bot';
-                stoppedMessageEl.innerHTML = `
-                    <div class="avatar bot-avatar">🤖</div>
-                    <div class="message-content">
-                        <strong>Ry:</strong><br>
-                        <em>Response stopped by user 🛑 Feel free to ask me anything else!</em>
+        // Message Management
+        function addMessage(content, isUser = false, isTyping = false) {
+            const messagesContainer = document.getElementById('messages');
+            const welcomeScreen = document.getElementById('welcome-screen');
+            
+            if (welcomeScreen) {
+                welcomeScreen.remove();
+            }
+            
+            if (isTyping) {
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'message assistant';
+                typingDiv.id = 'typing-indicator';
+                typingDiv.innerHTML = `
+                    <div class="message-avatar">R</div>
+                    <div class="typing-indicator">
+                        <span>Ryan is thinking</span>
+                        <div class="typing-dots">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
                     </div>
                 `;
-                chatBox.appendChild(stoppedMessageEl);
-                smartScroll();
+                messagesContainer.appendChild(typingDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                return;
             }
-        });
-
-        // Chat form submission with enhanced error handling
-        document.getElementById("chat-form").addEventListener("submit", async function (e) {
-            e.preventDefault();
-            const input = document.getElementById("user-input");
-            const sendBtn = document.getElementById("send-btn");
-            const stopBtn = document.getElementById("stop-btn");
-            const typingIndicator = document.getElementById("typing-indicator");
-
-            const userMessage = input.value.trim();
-            if (!userMessage) return;
-
-            const welcomeMessage = chatBox.querySelector('.welcome-message');
-            if (welcomeMessage) {
-                welcomeMessage.remove();
+            
+            // Remove typing indicator
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
             }
-
-            const userMessageEl = document.createElement('div');
-            userMessageEl.className = 'message user';
-            userMessageEl.innerHTML = `
-                <div class="avatar user-avatar">👤</div>
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+            
+            const avatar = isUser ? 'U' : 'R';
+            const processedContent = isUser ? content : processMarkdown(content);
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
                 <div class="message-content">
-                    <strong>You:</strong><br>${escapeHtml(userMessage)}
+                    <div class="message-text">${processedContent}</div>
+                    <div class="message-actions">
+                        <button class="action-btn" onclick="copyMessage(this)" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        ${!isUser ? '<button class="action-btn" onclick="regenerateResponse(this)" title="Regenerate"><i class="fas fa-redo"></i></button>' : ''}
+                    </div>
                 </div>
             `;
-            chatBox.appendChild(userMessageEl);
             
-            input.value = "";
-            input.style.height = 'auto';
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
             
-            sendBtn.disabled = true;
-            sendBtn.classList.add('hidden');
-            stopBtn.classList.remove('hidden');
-            typingIndicator.classList.add('show');
-            isTyping = true;
-            
-            smartScroll();
+            // Highlight code blocks
+            if (!isUser) {
+                Prism.highlightAllUnder(messageDiv);
+            }
+        }
 
+        function processMarkdown(text) {
+            // Process code blocks
+            text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                const language = lang || 'text';
+                return `
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>${language}</span>
+                            <button class="copy-btn" onclick="copyCode(this)">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                        <div class="code-content">
+                            <pre><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Process inline code
+            text = text.replace(/`([^`]+)`/g, '<code style="background-color: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-family: monospace;">$1</code>');
+            
+            // Process headers
+            text = text.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            text = text.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            text = text.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            
+            // Process bold and italic
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Process lists
+            text = text.replace(/^\* (.*$)/gim, '<li>$1</li>');
+            text = text.replace(/^(\d+)\. (.*$)/gim, '<li>$2</li>');
+            
+            // Wrap consecutive list items
+            text = text.replace(/(<li>.*<\/li>)/gs, (match) => {
+                if (match.includes('1.') || match.match(/^\d+\./)) {
+                    return `<ol>${match}</ol>`;
+                }
+                return `<ul>${match}</ul>`;
+            });
+            
+            // Process line breaks
+            text = text.replace(/\n\n/g, '</p><p>');
+            text = text.replace(/\n/g, '<br>');
+            
+            // Wrap in paragraphs if not already wrapped
+            if (!text.startsWith('<') && text.length > 0) {
+                text = `<p>${text}</p>`;
+            }
+            
+            return text;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Chat Functions
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+            
+            isLoading = true;
+            updateSendButton(true);
+            
+            // Add user message
+            addMessage(message, true);
+            input.value = '';
+            updateCharCount();
+            
+            // Show typing indicator
+            addMessage('', false, true);
+            
             try {
-                const controller = new AbortController();
-                currentTypingController = controller;
-
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        message: userMessage
-                    }),
-                    signal: controller.signal
+                    body: JSON.stringify({ message: message })
                 });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Server error (${response.status}): ${errorText}`);
-                }
-
+                
                 const data = await response.json();
                 
-                typingIndicator.classList.remove('show');
-                
-                const botMessageEl = document.createElement('div');
-                botMessageEl.className = 'message bot';
-                botMessageEl.innerHTML = `
-                    <div class="avatar bot-avatar">🤖</div>
-                    <div class="message-content">
-                        <strong>Ry:</strong><br>
-                        <div class="bot-response"></div>
-                    </div>
-                `;
-                chatBox.appendChild(botMessageEl);
-                
-                const responseContainer = botMessageEl.querySelector('.bot-response');
-                await displayMessage(responseContainer, data.reply, controller.signal);
-                
-            } catch (error) {
-                if (error.name === 'AbortError') return; // User stopped the request
-                
-                console.error('Error:', error);
-                typingIndicator.classList.remove('show');
-                
-                const errorMessageEl = document.createElement('div');
-                errorMessageEl.className = 'message bot';
-                errorMessageEl.innerHTML = `
-                    <div class="avatar bot-avatar">🤖</div>
-                    <div class="message-content" style="color: #dc3545;">
-                        <strong>Ry:</strong><br>
-                        Oops! Something went wrong. Please try again. 🔧
-                        <br><br><small>Error: ${error.message}</small>
-                    </div>
-                `;
-                chatBox.appendChild(errorMessageEl);
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.classList.remove('hidden');
-                stopBtn.classList.add('hidden');
-                isTyping = false;
-                currentTypingController = null;
-                scrollControl.classList.remove('show');
-                smartScroll();
-            }
-        });
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML.replace(/\n/g, '<br>');
-        }
-
-        // FIXED MESSAGE DISPLAY FUNCTION - No more aggressive code detection
-        async function displayMessage(container, message, abortSignal) {
-            // More precise code block regex - only matches proper code blocks with backticks
-            const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
-            const parts = [];
-            let lastIndex = 0;
-            let match;
-
-            // Find all properly formatted code blocks
-            while ((match = codeBlockRegex.exec(message)) !== null) {
-                // Add text before code block
-                if (match.index > lastIndex) {
-                    const textContent = message.slice(lastIndex, match.index).trim();
-                    if (textContent) {
-                        parts.push({
-                            type: 'text',
-                            content: textContent
-                        });
-                    }
-                }
-                
-                // Add code block
-                parts.push({
-                    type: 'code',
-                    language: match[1] || 'text',
-                    content: match[2].trim()
-                });
-                
-                lastIndex = match.index + match[0].length;
-            }
-            
-            // Add remaining text after last code block
-            if (lastIndex < message.length) {
-                const remainingText = message.slice(lastIndex).trim();
-                if (remainingText) {
-                    parts.push({
-                        type: 'text',
-                        content: remainingText
-                    });
-                }
-            }
-            
-            // If no code blocks found, treat entire message as text
-            if (parts.length === 0) {
-                parts.push({
-                    type: 'text',
-                    content: message
-                });
-            }
-            
-            // Process each part
-            for (const part of parts) {
-                if (abortSignal && abortSignal.aborted) return;
-                
-                if (part.type === 'code') {
-                    await createAndDisplayCodeBlock(container, part, abortSignal);
+                if (response.ok) {
+                    addMessage(data.reply, false);
                 } else {
-                    await createAndDisplayText(container, part.content, abortSignal);
+                    addMessage(`Error: ${data.reply || 'Something went wrong'}`, false);
                 }
+            } catch (error) {
+                addMessage('Error: Failed to connect to the server. Please try again.', false);
+                console.error('Error:', error);
+            } finally {
+                isLoading = false;
+                updateSendButton(false);
             }
         }
 
-        async function createAndDisplayCodeBlock(container, codePart, abortSignal) {
-            const codeContainer = document.createElement('div');
-            codeContainer.className = 'code-container';
-            
-            // Check if code is very large (>100 lines)
-            const lineCount = codePart.content.split('\n').length;
-            if (lineCount > 100) {
-                codeContainer.classList.add('large');
-            }
-            
-            const pre = document.createElement('pre');
-            const code = document.createElement('code');
-            code.className = `language-${codePart.language}`;
-            
-            // Create copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'copy-btn';
-            copyBtn.innerHTML = '📋 Copy';
-            copyBtn.onclick = function() { copyCode(this); };
-            
-            pre.appendChild(code);
-            codeContainer.appendChild(pre);
-            codeContainer.appendChild(copyBtn);
-            
-            // Add expand button for large code blocks
-            if (lineCount > 100) {
-                const expandBtn = document.createElement('button');
-                expandBtn.className = 'expand-btn';
-                expandBtn.innerHTML = '👆 Show full code';
-                expandBtn.onclick = function() {
-                    codeContainer.classList.toggle('expanded');
-                    this.innerHTML = codeContainer.classList.contains('expanded') 
-                        ? '👇 Collapse code' 
-                        : '👆 Show full code';
-                };
-                codeContainer.appendChild(expandBtn);
-            }
-            
-            container.appendChild(codeContainer);
-            
-            // Display the code instantly for better user experience
-            code.textContent = codePart.content;
-            smartScroll();
-        }
-
-        async function createAndDisplayText(container, text, abortSignal) {
-            const textDiv = document.createElement('div');
-            container.appendChild(textDiv);
-            
-            // Format the text properly with paragraphs and line breaks
-            const formattedText = text
-                .split('\n\n')
-                .map(paragraph => paragraph.trim())
-                .filter(paragraph => paragraph.length > 0)
-                .join('\n\n');
-            
-            // Use faster typing for better UX - or display instantly for very long responses
-            if (formattedText.length > 500) {
-                // For long responses, display instantly with proper formatting
-                textDiv.innerHTML = formatTextResponse(formattedText);
-                smartScroll();
+        function updateSendButton(loading) {
+            const sendBtn = document.getElementById('send-btn');
+            if (loading) {
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                sendBtn.disabled = true;
             } else {
-                // For shorter responses, use typing effect
-                await typeText(textDiv, formattedText, 1, abortSignal);
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                sendBtn.disabled = false;
             }
         }
 
-        function formatTextResponse(text) {
-            // Convert double line breaks to paragraph breaks
-            // Convert single line breaks to <br> tags
-            return text
-                .split('\n\n')
-                .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
-                .join('');
-        }
-
-        async function typeText(element, text, speed = 1, abortSignal) {
-            // Handle paragraph formatting during typing
-            const paragraphs = text.split('\n\n');
+        // Code Analysis
+        async function analyzeCode() {
+            const code = document.getElementById('code-textarea').value.trim();
+            const language = document.getElementById('code-language').value;
+            const resultDiv = document.getElementById('analysis-result');
             
-            for (let p = 0; p < paragraphs.length; p++) {
-                if (abortSignal && abortSignal.aborted) return;
+            if (!code) {
+                resultDiv.innerHTML = '<div style="color: var(--error-color); padding: 16px; background-color: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">Please enter some code to analyze.</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div style="padding: 16px; text-align: center;"><i class="fas fa-spinner fa-spin"></i> Analyzing code...</div>';
+            
+            try {
+                const response = await fetch('/analyze-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code: code, language: language })
+                });
                 
-                const paragraph = paragraphs[p].trim();
-                if (!paragraph) continue;
+                const data = await response.json();
                 
-                const pElement = document.createElement('p');
-                pElement.style.margin = '0 0 15px 0';
-                element.appendChild(pElement);
-                
-                // Type each character of the paragraph
-                const lines = paragraph.split('\n');
-                for (let l = 0; l < lines.length; l++) {
-                    if (abortSignal && abortSignal.aborted) return;
-                    
-                    const line = lines[l];
-                    for (let i = 0; i < line.length; i++) {
-                        if (abortSignal && abortSignal.aborted) return;
-                        pElement.textContent += line[i];
-                        if (i % 5 === 0) { // Reduce scroll frequency
-                            await new Promise(resolve => setTimeout(resolve, speed));
-                            smartScroll();
-                        }
-                    }
-                    
-                    // Add line break if not the last line
-                    if (l < lines.length - 1) {
-                        pElement.innerHTML += '<br>';
-                    }
+                if (response.ok) {
+                    const analysis = data.analysis;
+                    resultDiv.innerHTML = `
+                        <div style="background-color: var(--bg-secondary); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <h3 style="margin-bottom: 16px;">Code Analysis Results</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                                <div>
+                                    <strong>Lines of Code:</strong> ${analysis.line_count}
+                                </div>
+                                <div>
+                                    <strong>Characters:</strong> ${analysis.character_count}
+                                </div>
+                                <div>
+                                    <strong>Complexity:</strong> ${analysis.estimated_complexity}
+                                </div>
+                                <div>
+                                    <strong>Language:</strong> ${analysis.language}
+                                </div>
+                                <div>
+                                    <strong>Has Functions:</strong> ${analysis.has_functions ? 'Yes' : 'No'}
+                                </div>
+                                <div>
+                                    <strong>Has Classes:</strong> ${analysis.has_classes ? 'Yes' : 'No'}
+                                </div>
+                                <div>
+                                    <strong>Has Imports:</strong> ${analysis.has_imports ? 'Yes' : 'No'}
+                                </div>
+                            </div>
+                            <div style="margin-top: 20px;">
+                                <button class="btn primary" onclick="analyzeWithAI()">
+                                    <i class="fas fa-robot"></i>
+                                    Get AI Analysis
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div style="color: var(--error-color); padding: 16px; background-color: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">Error: ${data.error}</div>`;
                 }
+            } catch (error) {
+                resultDiv.innerHTML = '<div style="color: var(--error-color); padding: 16px; background-color: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">Error: Failed to analyze code.</div>';
+                console.error('Error:', error);
             }
         }
 
-        function copyCode(btn) {
-            const codeElement = btn.parentElement.querySelector('code');
-            const code = codeElement.textContent.replace(/\s*$/, '');
+        async function analyzeWithAI() {
+            const code = document.getElementById('code-textarea').value.trim();
+            const language = document.getElementById('code-language').value;
             
-            navigator.clipboard.writeText(code).then(() => {
-                const originalText = btn.innerHTML;
-                btn.innerHTML = "✅ Copied!";
+            // Switch to chat tab
+            switchTab('chat');
+            document.querySelector('.menu-item').click();
+            
+            // Send code for AI analysis
+            const message = `Please analyze this ${language} code:\n\n\`\`\`${language}\n${code}\n\`\`\``;
+            document.getElementById('message-input').value = message;
+            sendMessage();
+        }
+
+        // Utility Functions
+        function copyMessage(btn) {
+            const messageContent = btn.closest('.message-content').querySelector('.message-text');
+            const text = messageContent.innerText || messageContent.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalIcon = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                btn.style.color = 'var(--success-color)';
+                
                 setTimeout(() => {
-                    btn.innerHTML = originalText;
-                }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy code:', err);
-                btn.innerHTML = "❌ Failed";
-                setTimeout(() => {
-                    btn.innerHTML = "📋 Copy";
+                    btn.innerHTML = originalIcon;
+                    btn.style.color = '';
                 }, 2000);
             });
         }
 
-        // Enter key handling
-        document.getElementById("user-input").addEventListener("keydown", function(e) {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                document.getElementById("chat-form").dispatchEvent(new Event('submit'));
+        function copyCode(btn) {
+            const codeBlock = btn.closest('.code-block').querySelector('code');
+            const text = codeBlock.innerText || codeBlock.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                btn.style.color = 'var(--success-color)';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.style.color = '';
+                }, 2000);
+            });
+        }
+
+        async function regenerateResponse(btn) {
+            // Implementation for regenerating the last response
+            console.log('Regenerate response feature - to be implemented');
+        }
+
+        async function clearChat() {
+            try {
+                const response = await fetch('/clear-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    // Clear messages
+                    document.getElementById('messages').innerHTML = `
+                        <div class="welcome-screen" id="welcome-screen">
+                            <div class="welcome-avatar">R</div>
+                            <div class="welcome-title">Hey there! I'm Ryan 👋</div>
+                            <div class="welcome-subtitle">
+                                Your advanced AI coding assistant, ready to help you debug, optimize, create, and understand code like never before!
+                            </div>
+                            <div class="welcome-features">
+                                <div class="feature-card">
+                                    <div class="feature-icon">
+                                        <i class="fas fa-bug"></i>
+                                    </div>
+                                    <div class="feature-title">Debug & Fix</div>
+                                    <div class="feature-description">
+                                        I can analyze your code, identify bugs, and provide complete fixes with detailed explanations.
+                                    </div>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">
+                                        <i class="fas fa-rocket"></i>
+                                    </div>
+                                    <div class="feature-title">Optimize Performance</div>
+                                    <div class="feature-description">
+                                        Let me help you improve your code's efficiency, speed, and overall performance.
+                                    </div>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">
+                                        <i class="fas fa-lightbulb"></i>
+                                    </div>
+                                    <div class="feature-title">Code Generation</div>
+                                    <div class="feature-description">
+                                        I can create complete applications, functions, and scripts tailored to your exact needs.
+                                    </div>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">
+                                        <i class="fas fa-graduation-cap"></i>
+                                    </div>
+                                    <div class="feature-title">Learn & Understand</div>
+                                    <div class="feature-description">
+                                        Get clear explanations of complex code concepts with examples and best practices.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error clearing chat:', error);
             }
+        }
+
+        async function showHistory() {
+            try {
+                const response = await fetch('/chat-history');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    console.log('Chat History:', data);
+                    // You can implement a modal or dedicated view for history here
+                    alert(`Chat History: ${data.total_messages} messages total`);
+                }
+            } catch (error) {
+                console.error('Error fetching history:', error);
+            }
+        }
+
+        function exportChat() {
+            const messages = document.querySelectorAll('.message');
+            let chatText = 'Chat Export - Ryan AI\n' + '='.repeat(30) + '\n\n';
+            
+            messages.forEach(message => {
+                const isUser = message.classList.contains('user');
+                const content = message.querySelector('.message-text').innerText;
+                const role = isUser ? 'You' : 'Ryan';
+                
+                chatText += `${role}:\n${content}\n\n${'-'.repeat(20)}\n\n`;
+            });
+            
+            const blob = new Blob([chatText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ryan-chat-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function updateCharCount() {
+            const input = document.getElementById('message-input');
+            const charCount = document.getElementById('char-count');
+            const count = input.value.length;
+            charCount.textContent = `${count} / 2000`;
+            
+            if (count > 2000) {
+                charCount.style.color = 'var(--error-color)';
+            } else if (count > 1800) {
+                charCount.style.color = 'var(--warning-color)';
+            } else {
+                charCount.style.color = 'var(--text-muted)';
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('message-input').addEventListener('input', function() {
+            updateCharCount();
+            
+            // Auto-resize textarea
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        });
+
+        document.getElementById('message-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Mobile menu handling
+        function setupMobileMenu() {
+            const menuBtn = document.getElementById('menu-btn');
+            if (window.innerWidth <= 768) {
+                menuBtn.style.display = 'block';
+            } else {
+                menuBtn.style.display = 'none';
+                document.getElementById('sidebar').classList.remove('open');
+            }
+        }
+
+        window.addEventListener('resize', setupMobileMenu);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTheme();
+            setupMobileMenu();
+            updateCharCount();
+            
+            // Focus on input
+            document.getElementById('message-input').focus();
         });
     </script>
 </body>
