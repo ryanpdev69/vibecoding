@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="shortcut icon" type="x-icon" href="ryvibe.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RyVibing AI</title>
     <style>
@@ -597,227 +598,218 @@
 
     <script>
         let isTyping = false;
-let currentTypingController = null;
-let autoScroll = true;
-let userScrolledUp = false;
-let lastScrollPosition = 0;
+        let currentTypingController = null;
+        let autoScroll = true;
+        let userScrolledUp = false;
+        let lastScrollPosition = 0;
 
-const chatBox = document.getElementById("chat-box");
-const scrollControl = document.getElementById("scroll-control");
+        const chatBox = document.getElementById("chat-box");
+        const scrollControl = document.getElementById("scroll-control");
 
-// Scroll detection with throttling
-let scrollTimeout;
-chatBox.addEventListener('scroll', function() {
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-        const scrollTop = chatBox.scrollTop;
-        const scrollHeight = chatBox.scrollHeight;
-        const clientHeight = chatBox.clientHeight;
-        
-        // Check if user scrolled up manually
-        if (scrollTop < lastScrollPosition) {
-            userScrolledUp = true;
-            autoScroll = false;
-            updateScrollControl();
-        } else if (scrollTop + clientHeight >= scrollHeight - 50) {
-            // User is at or near bottom
-            userScrolledUp = false;
-            autoScroll = true;
-            updateScrollControl();
-        }
-        
-        lastScrollPosition = scrollTop;
-    }, 100); // Throttle to 100ms
-});
-
-// Update scroll control indicator
-function updateScrollControl() {
-    if (userScrolledUp && isTyping) {
-        scrollControl.textContent = '📍 Scroll to follow';
-        scrollControl.classList.add('show');
-    } else {
-        scrollControl.classList.remove('show');
-    }
-}
-
-// Click to resume auto-scroll
-scrollControl.addEventListener('click', function() {
-    autoScroll = true;
-    userScrolledUp = false;
-    chatBox.scrollTop = chatBox.scrollHeight;
-    scrollControl.classList.remove('show');
-});
-
-// Smart scroll function with debouncing
-let scrollDebounce;
-function smartScroll() {
-    if (autoScroll && !userScrolledUp) {
-        clearTimeout(scrollDebounce);
-        scrollDebounce = setTimeout(() => {
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }, 50);
-    }
-}
-
-// Auto-resize textarea
-const textarea = document.getElementById("user-input");
-textarea.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-});
-
-// Stop button functionality
-document.getElementById("stop-btn").addEventListener("click", function() {
-    if (isTyping && currentTypingController) {
-        currentTypingController.abort();
-        const sendBtn = document.getElementById("send-btn");
-        const stopBtn = document.getElementById("stop-btn");
-        const typingIndicator = document.getElementById("typing-indicator");
-        
-        sendBtn.disabled = false;
-        sendBtn.classList.remove('hidden');
-        stopBtn.classList.add('hidden');
-        typingIndicator.classList.remove('show');
-        isTyping = false;
-        currentTypingController = null;
-        scrollControl.classList.remove('show');
-        
-        // Add stopped message
-        const stoppedMessageEl = document.createElement('div');
-        stoppedMessageEl.className = 'message bot';
-        stoppedMessageEl.innerHTML = `
-            <div class="avatar bot-avatar">🤖</div>
-            <div class="message-content">
-                <strong>Ry:</strong><br>
-                <em>Response stopped by user 🛑 Feel free to ask me anything else!</em>
-            </div>
-        `;
-        chatBox.appendChild(stoppedMessageEl);
-        smartScroll();
-    }
-});
-
-// Chat form submission
-document.getElementById("chat-form").addEventListener("submit", async function (e) {
-    e.preventDefault();
-    const input = document.getElementById("user-input");
-    const sendBtn = document.getElementById("send-btn");
-    const stopBtn = document.getElementById("stop-btn");
-    const typingIndicator = document.getElementById("typing-indicator");
-
-    const userMessage = input.value.trim();
-    if (!userMessage) return;
-
-    // Remove welcome message if it exists
-    const welcomeMessage = chatBox.querySelector('.welcome-message');
-    if (welcomeMessage) {
-        welcomeMessage.remove();
-    }
-
-    // Add user message
-    const userMessageEl = document.createElement('div');
-    userMessageEl.className = 'message user';
-    userMessageEl.innerHTML = `
-        <div class="avatar user-avatar">👤</div>
-        <div class="message-content">
-            <strong>You:</strong><br>${escapeHtml(userMessage)}
-        </div>
-    `;
-    chatBox.appendChild(userMessageEl);
-    
-    // Clear input
-    input.value = "";
-    input.style.height = 'auto';
-    
-    // Disable send button and show typing
-    sendBtn.disabled = true;
-    sendBtn.classList.add('hidden');
-    stopBtn.classList.remove('hidden');
-    typingIndicator.classList.add('show');
-    isTyping = true;
-    
-    smartScroll();
-
-    try {
-        // Call Flask backend
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: userMessage
-            })
+        // Scroll detection
+        chatBox.addEventListener('scroll', function() {
+            const scrollTop = chatBox.scrollTop;
+            const scrollHeight = chatBox.scrollHeight;
+            const clientHeight = chatBox.clientHeight;
+            
+            // Check if user scrolled up manually
+            if (scrollTop < lastScrollPosition) {
+                userScrolledUp = true;
+                autoScroll = false;
+                updateScrollControl();
+            } else if (scrollTop + clientHeight >= scrollHeight - 50) {
+                // User is at or near bottom
+                userScrolledUp = false;
+                autoScroll = true;
+                updateScrollControl();
+            }
+            
+            lastScrollPosition = scrollTop;
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Server error (${response.status}): ${errorText}`);
+        // Update scroll control indicator
+        function updateScrollControl() {
+            if (userScrolledUp && isTyping) {
+                scrollControl.textContent = '📍 Scroll to follow';
+                scrollControl.classList.add('show');
+            } else {
+                scrollControl.classList.remove('show');
+            }
         }
 
-        const data = await response.json();
-        
-        // Hide typing indicator
-        typingIndicator.classList.remove('show');
-        
-        // Add bot message with typing animation
-        const botMessageEl = document.createElement('div');
-        botMessageEl.className = 'message bot';
-        botMessageEl.innerHTML = `
-            <div class="avatar bot-avatar">🤖</div>
-            <div class="message-content">
-                <strong>Ry:</strong><br>
-                <div class="bot-response"></div>
-            </div>
-        `;
-        chatBox.appendChild(botMessageEl);
-        
-        const responseContainer = botMessageEl.querySelector('.bot-response');
-        currentTypingController = new AbortController();
-        await typeMessage(responseContainer, data.reply, currentTypingController.signal);
-        
-    } catch (error) {
-        console.error('Error:', error);
-        typingIndicator.classList.remove('show');
-        
-        const errorMessageEl = document.createElement('div');
-        errorMessageEl.className = 'message bot';
-        errorMessageEl.innerHTML = `
-            <div class="avatar bot-avatar">🤖</div>
-            <div class="message-content error-message">
-                <strong>Ry:</strong><br>
-                Oops! Something went wrong. Please make sure the Flask server is running and try again. 🔧
-                <br><br><small>Error: ${error.message}</small>
-            </div>
-        `;
-        chatBox.appendChild(errorMessageEl);
-    } finally {
-        sendBtn.disabled = false;
-        sendBtn.classList.remove('hidden');
-        stopBtn.classList.add('hidden');
-        isTyping = false;
-        currentTypingController = null;
-        scrollControl.classList.remove('show');
-        smartScroll();
-    }
-});
+        // Click to resume auto-scroll
+        scrollControl.addEventListener('click', function() {
+            autoScroll = true;
+            userScrolledUp = false;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollControl.classList.remove('show');
+        });
 
-// Utility function to escape HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML.replace(/\n/g, '<br>');
-}
+        // Smart scroll function - only scrolls if auto-scroll is enabled
+        function smartScroll() {
+            if (autoScroll && !userScrolledUp) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
 
-// Optimized typeMessage function for large responses
-async function typeMessage(container, message, abortSignal) {
+        // Auto-resize textarea
+        const textarea = document.getElementById("user-input");
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Stop button functionality
+        document.getElementById("stop-btn").addEventListener("click", function() {
+            if (isTyping && currentTypingController) {
+                currentTypingController.abort();
+                const sendBtn = document.getElementById("send-btn");
+                const stopBtn = document.getElementById("stop-btn");
+                const typingIndicator = document.getElementById("typing-indicator");
+                
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                typingIndicator.classList.remove('show');
+                isTyping = false;
+                currentTypingController = null;
+                scrollControl.classList.remove('show');
+                
+                // Add stopped message
+                const stoppedMessageEl = document.createElement('div');
+                stoppedMessageEl.className = 'message bot';
+                stoppedMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>Ry:</strong><br>
+                        <em>Response stopped by user 🛑 Feel free to ask me anything else!</em>
+                    </div>
+                `;
+                chatBox.appendChild(stoppedMessageEl);
+                smartScroll();
+            }
+        });
+
+        // Chat form submission
+        document.getElementById("chat-form").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const input = document.getElementById("user-input");
+            const sendBtn = document.getElementById("send-btn");
+            const stopBtn = document.getElementById("stop-btn");
+            const typingIndicator = document.getElementById("typing-indicator");
+
+            const userMessage = input.value.trim();
+            if (!userMessage) return;
+
+            // Remove welcome message if it exists
+            const welcomeMessage = chatBox.querySelector('.welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+
+            // Add user message
+            const userMessageEl = document.createElement('div');
+            userMessageEl.className = 'message user';
+            userMessageEl.innerHTML = `
+                <div class="avatar user-avatar">👤</div>
+                <div class="message-content">
+                    <strong>You:</strong><br>${escapeHtml(userMessage)}
+                </div>
+            `;
+            chatBox.appendChild(userMessageEl);
+            
+            // Clear input
+            input.value = "";
+            input.style.height = 'auto';
+            
+            // Disable send button and show typing
+            sendBtn.disabled = true;
+            sendBtn.classList.add('hidden');
+            stopBtn.classList.remove('hidden');
+            typingIndicator.classList.add('show');
+            isTyping = true;
+            
+            smartScroll();
+
+            try {
+                // Call Flask backend
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: userMessage
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error (${response.status}): ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                // Hide typing indicator
+                typingIndicator.classList.remove('show');
+                
+                // Add bot message with typing animation
+                const botMessageEl = document.createElement('div');
+                botMessageEl.className = 'message bot';
+                botMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>Ry:</strong><br>
+                        <div class="bot-response"></div>
+                    </div>
+                `;
+                chatBox.appendChild(botMessageEl);
+                
+                const responseContainer = botMessageEl.querySelector('.bot-response');
+                currentTypingController = new AbortController();
+                await typeMessage(responseContainer, data.reply, currentTypingController.signal);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                typingIndicator.classList.remove('show');
+                
+                const errorMessageEl = document.createElement('div');
+                errorMessageEl.className = 'message bot';
+                errorMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content error-message">
+                        <strong>Ry:</strong><br>
+                        Oops! Something went wrong. Please make sure the Flask server is running and try again. 🔧
+                        <br><br><small>Error: ${error.message}</small>
+                    </div>
+                `;
+                chatBox.appendChild(errorMessageEl);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                isTyping = false;
+                currentTypingController = null;
+                scrollControl.classList.remove('show');
+                smartScroll();
+            }
+        });
+
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        // Type message with animation - MUCH FASTER NOW
+       async function typeMessage(container, message, abortSignal) {
     // Improved code block detection that handles language specification
     const codeBlockRegex = /```(\w*)\n([\s\S]*?)\n```/g;
     const parts = [];
     let lastIndex = 0;
     let match;
 
-    // Split message into parts (code blocks and regular text)
     while ((match = codeBlockRegex.exec(message)) !== null) {
         // Add text before code block
         if (match.index > lastIndex) {
@@ -831,7 +823,7 @@ async function typeMessage(container, message, abortSignal) {
         parts.push({
             type: 'code',
             language: match[1] || '',
-            content: match[2].trim()
+            content: match[2].trim() // Trim to remove any extra newlines
         });
         
         lastIndex = match.index + match[0].length;
@@ -853,11 +845,7 @@ async function typeMessage(container, message, abortSignal) {
         });
     }
     
-    // Batch processing for large responses
-    const BATCH_SIZE = 30; // Characters per batch
-    const BATCH_DELAY = 10; // ms between batches
-    
-    // Render each part with batching
+    // Render each part
     for (const part of parts) {
         if (abortSignal && abortSignal.aborted) return;
         
@@ -865,108 +853,121 @@ async function typeMessage(container, message, abortSignal) {
             const codeContainer = document.createElement('div');
             codeContainer.className = 'code-container';
             
+            // Create pre and code elements
             const pre = document.createElement('pre');
             const code = document.createElement('code');
             code.className = `language-${part.language || 'text'}`;
             
+            // Add copy button
             const copyBtn = document.createElement('button');
             copyBtn.className = 'copy-btn';
             copyBtn.innerHTML = '📋 Copy';
             copyBtn.onclick = function() { copyCode(this); };
             
+            // Add cursor for typing effect
             const cursor = document.createElement('span');
             cursor.className = 'typing-cursor';
             
+            // Assemble the elements
             pre.appendChild(code);
             code.appendChild(cursor);
             codeContainer.appendChild(pre);
             codeContainer.appendChild(copyBtn);
             container.appendChild(codeContainer);
             
-            // Batch process code content
-            let position = 0;
-            while (position < part.content.length && !(abortSignal && abortSignal.aborted)) {
-                const batchEnd = Math.min(position + BATCH_SIZE, part.content.length);
-                const batch = part.content.slice(position, batchEnd);
-                
-                // Append batch
-                const textNode = document.createTextNode(batch);
-                code.insertBefore(textNode, cursor);
-                
-                position = batchEnd;
-                smartScroll();
-                
-                // Small delay between batches
-                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-            }
+            // Type the code content
+            await typeCode(code, part.content, abortSignal);
             
             // Remove cursor after typing is complete
-            if (cursor.parentNode) {
-                setTimeout(() => cursor.remove(), 500);
-            }
+            setTimeout(() => {
+                if (cursor.parentNode) {
+                    cursor.remove();
+                }
+            }, 500);
         } else {
-            // Handle regular text with batching
+            // Handle regular text
             const textSpan = document.createElement('span');
             container.appendChild(textSpan);
-            
-            let position = 0;
-            const textContent = part.content.replace(/\n/g, '<br>');
-            
-            while (position < textContent.length && !(abortSignal && abortSignal.aborted)) {
-                const batchEnd = Math.min(position + BATCH_SIZE, textContent.length);
-                const batch = textContent.slice(position, batchEnd);
-                
-                // Handle HTML content (like <br> tags)
-                if (batch.includes('<br>')) {
-                    const htmlParts = batch.split('<br>');
-                    for (let i = 0; i < htmlParts.length; i++) {
-                        if (abortSignal && abortSignal.aborted) return;
-                        
-                        textSpan.innerHTML += htmlParts[i];
-                        if (i < htmlParts.length - 1) {
-                            textSpan.innerHTML += '<br>';
-                        }
-                    }
-                } else {
-                    textSpan.innerHTML += batch;
-                }
-                
-                position = batchEnd;
-                smartScroll();
-                
-                // Small delay between batches
-                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-            }
+            await typeText(textSpan, part.content.replace(/\n/g, '<br>'), 3, abortSignal);
         }
     }
 }
 
-// Optimized copy function
-function copyCode(btn) {
-    const codeElement = btn.parentElement.querySelector('code');
-    const code = codeElement.textContent.replace(/\s*$/, '');
-    
-    navigator.clipboard.writeText(code).then(() => {
-        btn.innerHTML = "✅ Copied!";
-        setTimeout(() => {
-            btn.innerHTML = "📋 Copy";
-        }, 2000);
-    }).catch(err => {
-        console.error('Failed to copy code:', err);
-        btn.innerHTML = "❌ Failed";
-        setTimeout(() => {
-            btn.innerHTML = "📋 Copy";
-        }, 2000);
-    });
-}
+        async function typeText(element, text, speed = 3, abortSignal) { // Much faster - was 15ms, now 3ms
+            // Handle HTML content (like <br> tags)
+            if (text.includes('<br>')) {
+                const parts = text.split('<br>');
+                for (let i = 0; i < parts.length; i++) {
+                    if (abortSignal && abortSignal.aborted) return;
+                    await typeText(element, parts[i], speed, abortSignal);
+                    if (i < parts.length - 1) {
+                        element.innerHTML += '<br>';
+                        await new Promise(resolve => setTimeout(resolve, speed));
+                    }
+                }
+                return;
+            }
+            
+            for (let i = 0; i < text.length; i++) {
+                if (abortSignal && abortSignal.aborted) return;
+                element.textContent += text[i];
+                await new Promise(resolve => setTimeout(resolve, speed));
+                smartScroll();
+            }
+        }
 
-// Enter key handling
-document.getElementById("user-input").addEventListener("keydown", function(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        document.getElementById("chat-form").dispatchEvent(new Event('submit'));
-    }
-});
+        async function typeCode(element, code, abortSignal, speed = 2) { // Much faster - was 8ms, now 2ms
+            const cursor = document.createElement('span');
+            cursor.className = 'typing-cursor';
+            element.appendChild(cursor);
+            
+            for (let i = 0; i < code.length; i++) {
+                if (abortSignal && abortSignal.aborted) {
+                    if (cursor.parentNode) cursor.remove();
+                    return;
+                }
+                const char = code[i];
+                const textNode = document.createTextNode(char);
+                element.insertBefore(textNode, cursor);
+                
+                await new Promise(resolve => setTimeout(resolve, speed));
+                smartScroll();
+            }
+            
+            // Remove cursor after typing is complete
+            setTimeout(() => {
+                if (cursor.parentNode) {
+                    cursor.remove();
+                }
+            }, 500); // Reduced from 1000ms to 500ms
+        }
+
+        function copyCode(btn) {
+            const codeElement = btn.parentElement.querySelector('code');
+            const code = codeElement.textContent.replace(/\s*$/, ''); // Remove trailing cursor
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = "✅ Copied!";
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy code:', err);
+                btn.innerHTML = "❌ Failed";
+                setTimeout(() => {
+                    btn.innerHTML = "📋 Copy";
+                }, 2000);
+            });
+        }
+
+        // Enter key handling
+        document.getElementById("user-input").addEventListener("keydown", function(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById("chat-form").dispatchEvent(new Event('submit'));
+            }
+        });
     </script>
 </body>
 </html>
