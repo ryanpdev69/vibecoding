@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VibeCoding AI</title>
     <style>
-       * {
+        * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -547,7 +547,7 @@
             .input-container {
                 padding: 0.75rem;
             }
-        } 
+        }
     </style>
 </head>
 <body>
@@ -557,9 +557,6 @@
                 🤖 VibeCoding AI
             </h1>
             <div class="status-indicator"></div>
-            <button id="clear-chat-btn" style="margin-left: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">
-                Clear Chat 🧹
-            </button>
         </div>
         
         <div id="chat-box">
@@ -608,100 +605,89 @@
         const chatBox = document.getElementById("chat-box");
         const scrollControl = document.getElementById("scroll-control");
 
-        // Load chat history when page loads
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const response = await fetch('/chat-history');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.history && data.history.length > 0) {
-                        // Remove welcome message
-                        const welcomeMessage = chatBox.querySelector('.welcome-message');
-                        if (welcomeMessage) welcomeMessage.remove();
-                        
-                        // Render chat history
-                        for (const message of data.history) {
-                            if (message.role === 'user') {
-                                addUserMessage(message.content);
-                            } else if (message.role === 'assistant') {
-                                await addBotMessage(message.content);
-                            }
-                        }
-                        smartScroll();
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading chat history:', error);
+        // Scroll detection
+        chatBox.addEventListener('scroll', function() {
+            const scrollTop = chatBox.scrollTop;
+            const scrollHeight = chatBox.scrollHeight;
+            const clientHeight = chatBox.clientHeight;
+            
+            // Check if user scrolled up manually
+            if (scrollTop < lastScrollPosition) {
+                userScrolledUp = true;
+                autoScroll = false;
+                updateScrollControl();
+            } else if (scrollTop + clientHeight >= scrollHeight - 50) {
+                // User is at or near bottom
+                userScrolledUp = false;
+                autoScroll = true;
+                updateScrollControl();
             }
+            
+            lastScrollPosition = scrollTop;
         });
 
-        // Clear chat button
-        document.getElementById("clear-chat-btn").addEventListener("click", async () => {
-            try {
-                const response = await fetch('/clear-chat', {
-                    method: 'POST'
-                });
-                
-                if (response.ok) {
-                    // Clear the chat UI
-                    chatBox.innerHTML = `
-                        <div class="welcome-message">
-                            <h2>Welcome to VibeCoding AI</h2>
-                            <p>I'm here to help with coding, answer questions, or just chat! Ask me anything.</p>
-                        </div>
-                        <div class="scroll-control" id="scroll-control">
-                            📍 Auto-scroll: ON
-                        </div>
-                    `;
-                    // Re-attach scroll control reference
-                    scrollControl = document.getElementById("scroll-control");
-                }
-            } catch (error) {
-                console.error('Error clearing chat:', error);
-            }
-        });
-
-        // [Previous scroll detection and other helper functions remain the same]
-
-        function addUserMessage(content) {
-            const userMessageEl = document.createElement('div');
-            userMessageEl.className = 'message user';
-            userMessageEl.innerHTML = `
-                <div class="avatar user-avatar">👤</div>
-                <div class="message-content">
-                    <strong>You:</strong><br>${escapeHtml(content)}
-                </div>
-            `;
-            chatBox.appendChild(userMessageEl);
-            smartScroll();
-            return userMessageEl;
-        }
-
-        async function addBotMessage(content, animate = true) {
-            const botMessageEl = document.createElement('div');
-            botMessageEl.className = 'message bot';
-            botMessageEl.innerHTML = `
-                <div class="avatar bot-avatar">🤖</div>
-                <div class="message-content">
-                    <strong>VibeCoding:</strong><br>
-                    <div class="bot-response"></div>
-                </div>
-            `;
-            chatBox.appendChild(botMessageEl);
-            
-            const responseContainer = botMessageEl.querySelector('.bot-response');
-            
-            if (animate) {
-                currentTypingController = new AbortController();
-                await typeMessage(responseContainer, content, currentTypingController.signal);
+        // Update scroll control indicator
+        function updateScrollControl() {
+            if (userScrolledUp && isTyping) {
+                scrollControl.textContent = '📍 Scroll to follow';
+                scrollControl.classList.add('show');
             } else {
-                // For history loading, don't animate
-                responseContainer.innerHTML = formatMessage(content);
+                scrollControl.classList.remove('show');
             }
-            
-            smartScroll();
-            return botMessageEl;
         }
+
+        // Click to resume auto-scroll
+        scrollControl.addEventListener('click', function() {
+            autoScroll = true;
+            userScrolledUp = false;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollControl.classList.remove('show');
+        });
+
+        // Smart scroll function - only scrolls if auto-scroll is enabled
+        function smartScroll() {
+            if (autoScroll && !userScrolledUp) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+        // Auto-resize textarea
+        const textarea = document.getElementById("user-input");
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Stop button functionality
+        document.getElementById("stop-btn").addEventListener("click", function() {
+            if (isTyping && currentTypingController) {
+                currentTypingController.abort();
+                const sendBtn = document.getElementById("send-btn");
+                const stopBtn = document.getElementById("stop-btn");
+                const typingIndicator = document.getElementById("typing-indicator");
+                
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                typingIndicator.classList.remove('show');
+                isTyping = false;
+                currentTypingController = null;
+                scrollControl.classList.remove('show');
+                
+                // Add stopped message
+                const stoppedMessageEl = document.createElement('div');
+                stoppedMessageEl.className = 'message bot';
+                stoppedMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>VibeCoding:</strong><br>
+                        <em>Response stopped by user 🛑 Feel free to ask me anything else!</em>
+                    </div>
+                `;
+                chatBox.appendChild(stoppedMessageEl);
+                smartScroll();
+            }
+        });
 
         // Chat form submission
         document.getElementById("chat-form").addEventListener("submit", async function (e) {
@@ -721,7 +707,15 @@
             }
 
             // Add user message
-            addUserMessage(userMessage);
+            const userMessageEl = document.createElement('div');
+            userMessageEl.className = 'message user';
+            userMessageEl.innerHTML = `
+                <div class="avatar user-avatar">👤</div>
+                <div class="message-content">
+                    <strong>You:</strong><br>${escapeHtml(userMessage)}
+                </div>
+            `;
+            chatBox.appendChild(userMessageEl);
             
             // Clear input
             input.value = "";
@@ -759,7 +753,20 @@
                 typingIndicator.classList.remove('show');
                 
                 // Add bot message with typing animation
-                await addBotMessage(data.reply);
+                const botMessageEl = document.createElement('div');
+                botMessageEl.className = 'message bot';
+                botMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>VibeCoding:</strong><br>
+                        <div class="bot-response"></div>
+                    </div>
+                `;
+                chatBox.appendChild(botMessageEl);
+                
+                const responseContainer = botMessageEl.querySelector('.bot-response');
+                currentTypingController = new AbortController();
+                await typeMessage(responseContainer, data.reply, currentTypingController.signal);
                 
             } catch (error) {
                 console.error('Error:', error);
@@ -771,8 +778,8 @@
                     <div class="avatar bot-avatar">🤖</div>
                     <div class="message-content error-message">
                         <strong>VibeCoding:</strong><br>
-                        Oops! Something went wrong. Please try again later. 🔧
-                        <br><br><small>Error: ${escapeHtml(error.message)}</small>
+                        Oops! Something went wrong. Please make sure the Flask server is running and try again. 🔧
+                        <br><br><small>Error: ${error.message}</small>
                     </div>
                 `;
                 chatBox.appendChild(errorMessageEl);
@@ -794,17 +801,150 @@
             return div.innerHTML.replace(/\n/g, '<br>');
         }
 
-        // Format message with code blocks
-        function formatMessage(message) {
-            return message.replace(/```(\w+)?\n?([\s\S]*?)```/g, (match, language, code) => {
-                return `<div class="code-container">
-                    <pre><code>${escapeHtml(code)}</code></pre>
-                    <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
-                </div>`;
+        // Type message with animation - MUCH FASTER NOW
+        async function typeMessage(container, message, abortSignal) {
+            // Check if message contains code blocks
+            const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g;
+            const parts = [];
+            let lastIndex = 0;
+            let match;
+
+            while ((match = codeBlockRegex.exec(message)) !== null) {
+                // Add text before code block
+                if (match.index > lastIndex) {
+                    parts.push({
+                        type: 'text',
+                        content: message.slice(lastIndex, match.index)
+                    });
+                }
+                
+                // Add code block
+                parts.push({
+                    type: 'code',
+                    language: match[1] || '',
+                    content: match[2]
+                });
+                
+                lastIndex = match.index + match[0].length;
+            }
+            
+            // Add remaining text
+            if (lastIndex < message.length) {
+                parts.push({
+                    type: 'text',
+                    content: message.slice(lastIndex)
+                });
+            }
+            
+            // If no code blocks found, treat as single text part
+            if (parts.length === 0) {
+                parts.push({
+                    type: 'text',
+                    content: message
+                });
+            }
+            
+            // Render each part
+            for (const part of parts) {
+                if (abortSignal && abortSignal.aborted) return;
+                
+                if (part.type === 'code') {
+                    const codeContainer = document.createElement('div');
+                    codeContainer.className = 'code-container';
+                    codeContainer.innerHTML = `
+                        <pre><code class="typing-code"></code></pre>
+                        <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                    `;
+                    
+                    container.appendChild(codeContainer);
+                    const codeElement = codeContainer.querySelector('.typing-code');
+                    
+                    // Type code with cursor - MUCH FASTER
+                    await typeCode(codeElement, part.content, abortSignal);
+                } else {
+                    // Handle regular text - MUCH FASTER
+                    const textSpan = document.createElement('span');
+                    container.appendChild(textSpan);
+                    await typeText(textSpan, part.content.replace(/\n/g, '<br>'), 3, abortSignal); // Reduced from 15ms to 3ms
+                }
+            }
+        }
+
+        async function typeText(element, text, speed = 3, abortSignal) { // Much faster - was 15ms, now 3ms
+            // Handle HTML content (like <br> tags)
+            if (text.includes('<br>')) {
+                const parts = text.split('<br>');
+                for (let i = 0; i < parts.length; i++) {
+                    if (abortSignal && abortSignal.aborted) return;
+                    await typeText(element, parts[i], speed, abortSignal);
+                    if (i < parts.length - 1) {
+                        element.innerHTML += '<br>';
+                        await new Promise(resolve => setTimeout(resolve, speed));
+                    }
+                }
+                return;
+            }
+            
+            for (let i = 0; i < text.length; i++) {
+                if (abortSignal && abortSignal.aborted) return;
+                element.textContent += text[i];
+                await new Promise(resolve => setTimeout(resolve, speed));
+                smartScroll();
+            }
+        }
+
+        async function typeCode(element, code, abortSignal, speed = 2) { // Much faster - was 8ms, now 2ms
+            const cursor = document.createElement('span');
+            cursor.className = 'typing-cursor';
+            element.appendChild(cursor);
+            
+            for (let i = 0; i < code.length; i++) {
+                if (abortSignal && abortSignal.aborted) {
+                    if (cursor.parentNode) cursor.remove();
+                    return;
+                }
+                const char = code[i];
+                const textNode = document.createTextNode(char);
+                element.insertBefore(textNode, cursor);
+                
+                await new Promise(resolve => setTimeout(resolve, speed));
+                smartScroll();
+            }
+            
+            // Remove cursor after typing is complete
+            setTimeout(() => {
+                if (cursor.parentNode) {
+                    cursor.remove();
+                }
+            }, 500); // Reduced from 1000ms to 500ms
+        }
+
+        function copyCode(btn) {
+            const codeElement = btn.parentElement.querySelector('code');
+            const code = codeElement.textContent.replace(/\s*$/, ''); // Remove trailing cursor
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = "✅ Copied!";
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy code:', err);
+                btn.innerHTML = "❌ Failed";
+                setTimeout(() => {
+                    btn.innerHTML = "📋 Copy";
+                }, 2000);
             });
         }
 
-        // [Rest of the JavaScript remains the same, including typeMessage, typeText, typeCode, copyCode functions]
+        // Enter key handling
+        document.getElementById("user-input").addEventListener("keydown", function(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById("chat-form").dispatchEvent(new Event('submit'));
+            }
+        });
     </script>
 </body>
 </html>
