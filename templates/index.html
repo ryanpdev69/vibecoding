@@ -431,6 +431,35 @@
             transform: translateY(-2px);
         }
 
+        /* Markdown-like formatting */
+        .message-content strong {
+            font-weight: bold;
+            color: #8be9fd;
+        }
+
+        .message-content em {
+            font-style: italic;
+            color: #bd93f9;
+        }
+
+        .message-content code:not([class*="language-"]) {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0.2em 0.4em;
+            border-radius: 0.3em;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+            font-size: 0.9em;
+        }
+
+        .message-content ul,
+        .message-content ol {
+            margin: 0.5em 0;
+            padding-left: 1.5em;
+        }
+
+        .message-content li {
+            margin-bottom: 0.3em;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .container {
@@ -801,98 +830,65 @@
             return div.innerHTML.replace(/\n/g, '<br>');
         }
 
-        // Type message with animation - MUCH FASTER NOW
-       async function typeMessage(container, message, abortSignal) {
-    // Improved code block detection that handles language specification
-    const codeBlockRegex = /```(\w*)\n([\s\S]*?)\n```/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-
-    while ((match = codeBlockRegex.exec(message)) !== null) {
-        // Add text before code block
-        if (match.index > lastIndex) {
-            parts.push({
-                type: 'text',
-                content: message.slice(lastIndex, match.index)
+        // Enhanced markdown formatting parser
+        function parseMarkdown(text) {
+            // Handle bold (**text**)
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Handle italic (*text* or _text_)
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            text = text.replace(/_(.*?)_/g, '<em>$1</em>');
+            
+            // Handle code blocks (```code```)
+            text = text.replace(/```(\w*)\n([\s\S]*?)\n```/g, function(match, lang, code) {
+                return `<div class="code-container"><pre><code class="language-${lang || 'text'}">${escapeHtml(code)}</code></pre><button class="copy-btn">📋 Copy</button></div>`;
             });
+            
+            // Handle inline code (`code`)
+            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Handle newlines (convert \n to <br>)
+            text = text.replace(/\n/g, '<br>');
+            
+            return text;
         }
-        
-        // Add code block with language
-        parts.push({
-            type: 'code',
-            language: match[1] || '',
-            content: match[2].trim() // Trim to remove any extra newlines
-        });
-        
-        lastIndex = match.index + match[0].length;
-    }
-    
-    // Add remaining text
-    if (lastIndex < message.length) {
-        parts.push({
-            type: 'text',
-            content: message.slice(lastIndex)
-        });
-    }
-    
-    // If no code blocks found, treat as single text part
-    if (parts.length === 0) {
-        parts.push({
-            type: 'text',
-            content: message
-        });
-    }
-    
-    // Render each part
-    for (const part of parts) {
-        if (abortSignal && abortSignal.aborted) return;
-        
-        if (part.type === 'code') {
-            const codeContainer = document.createElement('div');
-            codeContainer.className = 'code-container';
-            
-            // Create pre and code elements
-            const pre = document.createElement('pre');
-            const code = document.createElement('code');
-            code.className = `language-${part.language || 'text'}`;
-            
-            // Add copy button
-            const copyBtn = document.createElement('button');
-            copyBtn.className = 'copy-btn';
-            copyBtn.innerHTML = '📋 Copy';
-            copyBtn.onclick = function() { copyCode(this); };
-            
-            // Add cursor for typing effect
-            const cursor = document.createElement('span');
-            cursor.className = 'typing-cursor';
-            
-            // Assemble the elements
-            pre.appendChild(code);
-            code.appendChild(cursor);
-            codeContainer.appendChild(pre);
-            codeContainer.appendChild(copyBtn);
-            container.appendChild(codeContainer);
-            
-            // Type the code content
-            await typeCode(code, part.content, abortSignal);
-            
-            // Remove cursor after typing is complete
-            setTimeout(() => {
-                if (cursor.parentNode) {
-                    cursor.remove();
-                }
-            }, 500);
-        } else {
-            // Handle regular text
-            const textSpan = document.createElement('span');
-            container.appendChild(textSpan);
-            await typeText(textSpan, part.content.replace(/\n/g, '<br>'), 3, abortSignal);
-        }
-    }
-}
 
-        async function typeText(element, text, speed = 3, abortSignal) { // Much faster - was 15ms, now 3ms
+        // Type message with animation
+        async function typeMessage(container, message, abortSignal) {
+            // First parse the message for markdown formatting
+            const formattedMessage = parseMarkdown(message);
+            
+            // Create a temporary div to hold our parsed HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = formattedMessage;
+            
+            // Process each child node in the temporary div
+            for (const child of tempDiv.childNodes) {
+                if (abortSignal && abortSignal.aborted) return;
+                
+                if (child.nodeType === Node.TEXT_NODE) {
+                    // Handle text nodes
+                    await typeText(container, child.textContent, 3, abortSignal);
+                } else if (child.nodeType === Node.ELEMENT_NODE) {
+                    // Handle element nodes
+                    if (child.classList.contains('code-container')) {
+                        // Handle code blocks
+                        const codeContainer = child.cloneNode(true);
+                        container.appendChild(codeContainer);
+                        
+                        // Set up copy button
+                        const copyBtn = codeContainer.querySelector('.copy-btn');
+                        copyBtn.onclick = function() { copyCode(this); };
+                    } else {
+                        // Handle other HTML elements (bold, italic, etc.)
+                        const element = child.cloneNode(true);
+                        container.appendChild(element);
+                    }
+                }
+            }
+        }
+
+        async function typeText(element, text, speed = 3, abortSignal) {
             // Handle HTML content (like <br> tags)
             if (text.includes('<br>')) {
                 const parts = text.split('<br>');
@@ -915,35 +911,9 @@
             }
         }
 
-        async function typeCode(element, code, abortSignal, speed = 2) { // Much faster - was 8ms, now 2ms
-            const cursor = document.createElement('span');
-            cursor.className = 'typing-cursor';
-            element.appendChild(cursor);
-            
-            for (let i = 0; i < code.length; i++) {
-                if (abortSignal && abortSignal.aborted) {
-                    if (cursor.parentNode) cursor.remove();
-                    return;
-                }
-                const char = code[i];
-                const textNode = document.createTextNode(char);
-                element.insertBefore(textNode, cursor);
-                
-                await new Promise(resolve => setTimeout(resolve, speed));
-                smartScroll();
-            }
-            
-            // Remove cursor after typing is complete
-            setTimeout(() => {
-                if (cursor.parentNode) {
-                    cursor.remove();
-                }
-            }, 500); // Reduced from 1000ms to 500ms
-        }
-
         function copyCode(btn) {
             const codeElement = btn.parentElement.querySelector('code');
-            const code = codeElement.textContent.replace(/\s*$/, ''); // Remove trailing cursor
+            const code = codeElement.textContent;
             
             navigator.clipboard.writeText(code).then(() => {
                 const originalText = btn.innerHTML;
