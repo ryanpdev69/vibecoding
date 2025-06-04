@@ -17,7 +17,13 @@ app.secret_key = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-product
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # BEST FREE CODING MODEL - DeepSeek R1 Distill Qwen 7B
+# This model has 92.8% pass rate on math problems and Codeforces rating 1189
 MODEL = "meta-llama/llama-3.3-8b-instruct:free"  # 🥇 BEST for coding & reasoning
+
+# Alternative excellent free coding models (in order of preference):
+# MODEL = "qwen/qwen-2.5-coder-7b-instruct"     # 🥈 Specialized coding model  
+# MODEL = "deepseek/deepseek-chat"               # 🥉 General but strong at coding
+# MODEL = "qwen/qwen-2.5-7b-instruct"           # Good general model
 
 # Health check endpoint for Render
 @app.route("/health")
@@ -92,9 +98,9 @@ def chat():
             "timestamp": datetime.now().isoformat()
         })
         
-        # Keep only last 8 exchanges (16 messages) to avoid token limits for large code responses
-        if len(session['conversation']) > 16:
-            session['conversation'] = session['conversation'][-16:]
+        # Keep only last 10 exchanges (20 messages) to avoid token limits
+        if len(session['conversation']) > 20:
+            session['conversation'] = session['conversation'][-20:]
         
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -103,7 +109,6 @@ def chat():
             "X-Title": "VibeCoding AI"
         }
         
-        # Enhanced system prompt for better code formatting
         system_prompt = """You're VibeCoding, the most supportive AI coding companion who's also incredibly skilled at programming! 🚀
 
 Your dual nature:
@@ -117,21 +122,10 @@ Your dual nature:
 
 💻 CODING SIDE (when they ask for technical help):
 - Lead with brief encouragement, then dive into excellent code
-- ALWAYS provide complete, working examples with proper code blocks
-- Use proper markdown code blocks with language specification: ```python, ```javascript, ```html, etc.
-- For complex projects, break code into logical sections with clear explanations
-- Always include comments in your code for clarity
+- Provide complete, working examples immediately
 - Clear explanations after the code
 - Still warm but focus on being incredibly helpful
 - End with brief encouragement: "You've got this!" or "This will work great!"
-
-CODE FORMATTING RULES (CRITICAL):
-- Always wrap code in proper markdown code blocks: ```language
-- Specify the programming language after the opening ```
-- For HTML/CSS/JS combinations, use separate code blocks for each
-- Include complete, runnable examples
-- Add helpful comments within the code
-- Never truncate code - provide full implementations
 
 PERFECT BALANCE EXAMPLES:
 
@@ -142,48 +136,7 @@ Coding question: "How do I make an API call in React?"
 Response: "Great question! 🚀 API calls in React are super useful - here's exactly how to do it:
 
 ```javascript
-import React, { useState, useEffect } from 'react';
-
-function ApiExample() {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        // API call function
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch('https://api.example.com/data');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const result = await response.json();
-                setData(result);
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []); // Empty dependency array means this runs once on mount
-
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
-
-    return (
-        <div>
-            <h2>API Data:</h2>
-            <pre>{JSON.stringify(data, null, 2)}</pre>
-        </div>
-    );
-}
-
-export default ApiExample;
+// Your working code here
 ```
 
 This handles loading states and errors perfectly! The useEffect runs when the component mounts, and you can easily add more endpoints. You're building something awesome - this will work great for your project! 💪"
@@ -193,8 +146,7 @@ KEY RULES:
 - Personal questions = Full supportive mode with lots of warmth
 - Always remember conversation context and user details
 - Be genuinely excited about their coding journey
-- Never sacrifice code quality for chattiness - you're BOTH supportive AND excellent at coding!
-- ALWAYS format code properly in markdown code blocks with language specification"""
+- Never sacrifice code quality for chattiness - you're BOTH supportive AND excellent at coding!"""
 
         # Build messages array with conversation history and user context
         messages = [{"role": "system", "content": system_prompt}]
@@ -222,9 +174,8 @@ KEY RULES:
         payload = {
             "model": MODEL,
             "messages": messages,
-            "max_tokens": 4000,  # Increased significantly for larger code responses
-            "temperature": 0.7,
-            "stream": False  # Ensure we get complete responses
+            "max_tokens": 2000,  # Increased for longer responses
+            "temperature": 0.7
         }
         
         logger.info(f"Making request to OpenRouter API with {len(messages)} messages in context...")
@@ -233,7 +184,7 @@ KEY RULES:
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=60  # Increased timeout for larger responses
+            timeout=45  # Increased timeout for better reliability
         )
         
         logger.info(f"OpenRouter API response status: {response.status_code}")
@@ -265,10 +216,6 @@ KEY RULES:
         
         reply = data["choices"][0]["message"]["content"]
         
-        # Log the reply for debugging
-        logger.info(f"Generated reply length: {len(reply)} characters")
-        logger.info(f"Reply contains code blocks: {'```' in reply}")
-        
         # Add AI response to conversation history
         session['conversation'].append({
             "role": "assistant",
@@ -284,7 +231,7 @@ KEY RULES:
     
     except requests.exceptions.Timeout:
         logger.error("Request timed out")
-        return jsonify({"reply": "⚠️ Request timed out. The response might be too large. Please try breaking your request into smaller parts."}), 500
+        return jsonify({"reply": "⚠️ Request timed out. Please try again."}), 500
     
     except requests.exceptions.RequestException as e:
         logger.error(f"Request error: {e}")
