@@ -2,7 +2,9 @@ from flask import Flask, request, render_template, jsonify, session
 import requests
 import os
 import logging
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
+from functools import wraps
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,14 +18,73 @@ app.secret_key = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-product
 # Use environment variable for security
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# BEST FREE CODING MODEL - DeepSeek R1 Distill Qwen 7B
-# This model has 92.8% pass rate on math problems and Codeforces rating 1189
-MODEL = "meta-llama/llama-3.3-8b-instruct:free"  # 🥇 BEST for coding & reasoning
+# MULTIPLE MODEL FALLBACK SYSTEM
+PRIMARY_MODEL = "meta-llama/llama-3.3-8b-instruct:free"
+FALLBACK_MODELS = [
+    "qwen/qwen-2.5-coder-7b-instruct:free",
+    "deepseek/deepseek-chat:free",
+    "qwen/qwen-2.5-7b-instruct:free",
+    "microsoft/phi-3.5-mini-instruct:free"
+]
 
-# Alternative excellent free coding models (in order of preference):
-# MODEL = "qwen/qwen-2.5-coder-7b-instruct"     # 🥈 Specialized coding model  
-# MODEL = "deepseek/deepseek-chat"               # 🥉 General but strong at coding
-# MODEL = "qwen/qwen-2.5-7b-instruct"           # Good general model
+# Rate limiting storage (in production, use Redis or database)
+rate_limit_data = {
+    'requests_today': 0,
+    'last_reset': datetime.now().date(),
+    'current_model_index': 0
+}
+
+def check_and_reset_daily_limit():
+    """Reset daily counter if it's a new day"""
+    today = datetime.now().date()
+    if rate_limit_data['last_reset'] != today:
+        rate_limit_data['requests_today'] = 0
+        rate_limit_data['last_reset'] = today
+        rate_limit_data['current_model_index'] = 0
+        logger.info("Daily rate limit counter reset")
+
+def get_current_model():
+    """Get current model to use based on rate limiting"""
+    check_and_reset_daily_limit()
+    
+    if rate_limit_data['current_model_index'] == 0:
+        return PRIMARY_MODEL
+    
+    # Try fallback models
+    if rate_limit_data['current_model_index'] - 1 < len(FALLBACK_MODELS):
+        return FALLBACK_MODELS[rate_limit_data['current_model_index'] - 1]
+    
+    # All models exhausted
+    return None
+
+def handle_rate_limit_error():
+    """Handle rate limit by switching to next model"""
+    rate_limit_data['current_model_index'] += 1
+    logger.warning(f"Rate limit hit, switching to model index {rate_limit_data['current_model_index']}")
+    
+    if rate_limit_data['current_model_index'] <= len(FALLBACK_MODELS):
+        current_model = get_current_model()
+        logger.info(f"Switched to fallback model: {current_model}")
+        return True
+    else:
+        logger.error("All models exhausted for today")
+        return False
+
+# Simple rate limiting decorator
+def rate_limit(max_requests=45):  # Keep under 50 to be safe
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            check_and_reset_daily_limit()
+            
+            if rate_limit_data['requests_today'] >= max_requests:
+                return jsonify({
+                    "reply": "⚠️ Daily request limit reached. Please try again tomorrow or add credits to your OpenRouter account."
+                }), 429
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # Health check endpoint for Render
 @app.route("/health")
@@ -42,6 +103,7 @@ def home():
         return jsonify({"error": "Template not found"}), 500
 
 @app.route("/chat", methods=["POST"])
+@rate_limit(max_requests=45)
 def chat():
     try:
         user_input = request.json.get("message", "")
@@ -51,6 +113,13 @@ def chat():
         if not OPENROUTER_API_KEY:
             logger.error("OPENROUTER_API_KEY not found in environment variables")
             return jsonify({"reply": "⚠️ API key not configured. Please contact the administrator."}), 500
+        
+        # Get current model to use
+        current_model = get_current_model()
+        if not current_model:
+            return jsonify({
+                "reply": "⚠️ All free models exhausted for today. Please try again tomorrow or add credits to unlock more requests."
+            }), 429
         
         # Initialize conversation history and user context if not exists
         if 'conversation' not in session:
@@ -83,7 +152,6 @@ def chat():
         
         # Detect name sharing
         if 'my name is' in user_input_lower or 'i\'m ' in user_input_lower:
-            # Simple name extraction (this is basic - could be improved)
             import re
             name_match = re.search(r"(?:my name is|i'm|i am)\s+([a-zA-Z]+)", user_input_lower)
             if name_match:
@@ -98,18 +166,28 @@ def chat():
             "timestamp": datetime.now().isoformat()
         })
         
-        # Keep only last 10 exchanges (20 messages) to avoid token limits
-        if len(session['conversation']) > 10:
-            session['conversation'] = session['conversation'][-10:]
+        # Keep only last 8 exchanges (16 messages) to conserve tokens
+        if len(session['conversation']) > 16:
+            session['conversation'] = session['conversation'][-16:]
         
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://vibecoding-y73m.onrender.com",
-            "X-Title": "VibeCoding AI"
-        }
-        
-        system_prompt = """You're VibeCoding, the most supportive AI coding companion who's also incredibly skilled at programming! 🚀
+        # Try to make API request with retry logic
+        max_retries = len(FALLBACK_MODELS) + 1
+        for attempt in range(max_retries):
+            try:
+                current_model = get_current_model()
+                if not current_model:
+                    return jsonify({
+                        "reply": "⚠️ All free models exhausted for today. Please try again tomorrow."
+                    }), 429
+                
+                headers = {
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://vibecoding-y73m.onrender.com",
+                    "X-Title": "VibeCoding AI"
+                }
+                
+                system_prompt = """You're VibeCoding, the most supportive AI coding companion who's also incredibly skilled at programming! 🚀
 
 Your dual nature:
 🤗 PERSONAL SIDE (when user shares personal stuff, asks how you are, vents, etc.):
@@ -144,94 +222,107 @@ KEY RULES:
 - Never sacrifice code quality for chattiness - you're BOTH supportive AND excellent at coding!
 - For large code requests, prioritize completeness and functionality"""
 
-        # Build messages array with conversation history and user context
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        # Add user context info for the AI to reference
-        context_summary = []
-        if user_context['name']:
-            context_summary.append(f"User's name: {user_context['name']}")
-        if user_context['mood_today']:
-            context_summary.append(f"User's mood today: {user_context['mood_today']}")
-        if user_context['current_projects']:
-            context_summary.append(f"Current projects: {', '.join(user_context['current_projects'])}")
-        
-        if context_summary:
-            context_message = "Personal context about the user: " + " | ".join(context_summary)
-            messages.append({"role": "system", "content": context_message})
-        
-        # Add conversation history (excluding timestamps for API)
-        for msg in session['conversation']:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+                # Build messages array with conversation history and user context
+                messages = [{"role": "system", "content": system_prompt}]
+                
+                # Add user context info for the AI to reference
+                context_summary = []
+                if user_context['name']:
+                    context_summary.append(f"User's name: {user_context['name']}")
+                if user_context['mood_today']:
+                    context_summary.append(f"User's mood today: {user_context['mood_today']}")
+                if user_context['current_projects']:
+                    context_summary.append(f"Current projects: {', '.join(user_context['current_projects'])}")
+                
+                if context_summary:
+                    context_message = "Personal context about the user: " + " | ".join(context_summary)
+                    messages.append({"role": "system", "content": context_message})
+                
+                # Add conversation history (excluding timestamps for API)
+                for msg in session['conversation']:
+                    messages.append({
+                        "role": msg["role"],
+                        "content": msg["content"]
+                    })
 
-        payload = {
-            "model": MODEL,
-            "messages": messages,
-            "max_tokens": 8000,  # Increased for longer responses
-            "temperature": 0.7
-        }
-        
-        logger.info(f"Making request to OpenRouter API with {len(messages)} messages in context...")
-        
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=120  # Increased timeout for better reliability
-        )
-        
-        logger.info(f"OpenRouter API response status: {response.status_code}")
-        
-        # Check if request was successful
-        if response.status_code != 200:
-            logger.error(f"OpenRouter API Error - Status Code: {response.status_code}")
-            logger.error(f"Response: {response.text}")
-            return jsonify({"reply": f"⚠️ API Error (Status {response.status_code}). Please try again later."}), 500
-        
-        data = response.json()
-        logger.info("Successfully parsed API response")
-        
-        # Check if the response has the expected structure
-        if "choices" not in data:
-            logger.error("'choices' key not found in response")
-            logger.error(f"Available keys: {list(data.keys())}")
+                payload = {
+                    "model": current_model,
+                    "messages": messages,
+                    "max_tokens": 6000,  # Reduced to conserve usage
+                    "temperature": 0.7
+                }
+                
+                logger.info(f"Attempt {attempt + 1}: Making request to OpenRouter API with model {current_model}")
+                
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=60
+                )
+                
+                logger.info(f"OpenRouter API response status: {response.status_code}")
+                
+                # Handle rate limiting
+                if response.status_code == 429:
+                    logger.warning(f"Rate limit hit for model {current_model}")
+                    if handle_rate_limit_error():
+                        continue  # Try next model
+                    else:
+                        return jsonify({
+                            "reply": "⚠️ All free models exhausted for today. Please try again tomorrow or add credits to your OpenRouter account."
+                        }), 429
+                
+                # Check if request was successful
+                if response.status_code != 200:
+                    logger.error(f"OpenRouter API Error - Status Code: {response.status_code}")
+                    logger.error(f"Response: {response.text}")
+                    if attempt == max_retries - 1:  # Last attempt
+                        return jsonify({"reply": f"⚠️ API Error (Status {response.status_code}). Please try again later."}), 500
+                    continue
+                
+                data = response.json()
+                logger.info("Successfully parsed API response")
+                
+                # Check if the response has the expected structure
+                if "choices" not in data or not data["choices"]:
+                    logger.error("Invalid response structure")
+                    if attempt == max_retries - 1:
+                        return jsonify({"reply": "⚠️ Invalid API response. Please try again."}), 500
+                    continue
+                
+                reply = data["choices"][0]["message"]["content"]
+                
+                # Add AI response to conversation history
+                session['conversation'].append({
+                    "role": "assistant",
+                    "content": reply,
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                # Increment request counter
+                rate_limit_data['requests_today'] += 1
+                
+                # Save session
+                session.modified = True
+                
+                logger.info(f"Successfully generated AI response using {current_model} (Request #{rate_limit_data['requests_today']})")
+                return jsonify({"reply": reply})
+                
+            except requests.exceptions.Timeout:
+                logger.error(f"Request timed out for model {current_model}")
+                if attempt == max_retries - 1:
+                    return jsonify({"reply": "⚠️ Request timed out. Please try again."}), 500
+                continue
             
-            if "error" in data:
-                error_msg = data["error"].get("message", "Unknown API error")
-                logger.error(f"API Error: {error_msg}")
-                return jsonify({"reply": f"⚠️ API Error: {error_msg}"}), 500
-            
-            return jsonify({"reply": "⚠️ Unexpected API response format. Please try again."}), 500
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request error for model {current_model}: {e}")
+                if attempt == max_retries - 1:
+                    return jsonify({"reply": "⚠️ Network error. Please check your connection and try again."}), 500
+                continue
         
-        if not data["choices"] or len(data["choices"]) == 0:
-            logger.error("No choices in API response")
-            return jsonify({"reply": "⚠️ No response generated. Please try again."}), 500
-        
-        reply = data["choices"][0]["message"]["content"]
-        
-        # Add AI response to conversation history
-        session['conversation'].append({
-            "role": "assistant",
-            "content": reply,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-        # Save session
-        session.modified = True
-        
-        logger.info("Successfully generated AI response with conversation context")
-        return jsonify({"reply": reply})
-    
-    except requests.exceptions.Timeout:
-        logger.error("Request timed out")
-        return jsonify({"reply": "⚠️ Request timed out. Please try again."}), 500
-    
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request error: {e}")
-        return jsonify({"reply": "⚠️ Network error. Please check your connection and try again."}), 500
+        # If we get here, all attempts failed
+        return jsonify({"reply": "⚠️ All attempts failed. Please try again later."}), 500
     
     except Exception as e:
         logger.error(f"Unexpected error in chat endpoint: {e}")
@@ -257,6 +348,23 @@ def chat_history():
     except Exception as e:
         logger.error(f"Error getting chat history: {e}")
         return jsonify({"error": "Failed to get chat history"}), 500
+
+@app.route("/status", methods=["GET"])
+def status():
+    """Get current usage status"""
+    try:
+        check_and_reset_daily_limit()
+        current_model = get_current_model()
+        
+        return jsonify({
+            "requests_today": rate_limit_data['requests_today'],
+            "current_model": current_model,
+            "model_index": rate_limit_data['current_model_index'],
+            "date": rate_limit_data['last_reset'].isoformat()
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting status: {e}")
+        return jsonify({"error": "Failed to get status"}), 500
 
 # Error handlers
 @app.errorhandler(404)
