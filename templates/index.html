@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeCoding AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e4e4e7;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header {
+            padding: 1.5rem 2rem;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #8be9fd, #bd93f9, #ff79c6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            background: #50fa7b;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #chat-box {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            scroll-behavior: smooth;
+            position: relative;
+        }
+
+        #chat-box::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chat-box::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #chat-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .message {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            animation: slideUp 0.3s ease-out;
+            opacity: 0;
+            animation-fill-mode: forwards;
+            width: 100%;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            background: linear-gradient(135deg, #ff79c6, #bd93f9);
+        }
+
+        .bot-avatar {
+            background: linear-gradient(135deg, #8be9fd, #50fa7b);
+            color: #000;
+        }
+
+        .message-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            line-height: 1.6;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            min-width: 0;
+        }
+
+        .user .message-content {
+            background: linear-gradient(135deg, rgba(139, 233, 253, 0.1), rgba(189, 147, 249, 0.1));
+            border: 1px solid rgba(139, 233, 253, 0.2);
+            max-width: 80%;
+        }
+
+        .bot .message-content {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 90%;
+        }
+
+        .user {
+            flex-direction: row-reverse;
+        }
+
+        .user .message-content {
+            margin-left: auto;
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin: 1rem 0;
+            position: relative;
+            border-left: 3px solid #8be9fd;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        pre::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        pre::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        pre::-webkit-scrollbar-thumb {
+            background: rgba(139, 233, 253, 0.5);
+            border-radius: 2px;
+        }
+
+        .code-container {
+            position: relative;
+            margin: 1rem 0;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(139, 233, 253, 0.1);
+            color: #8be9fd;
+            border: 1px solid rgba(139, 233, 253, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .copy-btn:hover {
+            background: rgba(139, 233, 253, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .typing-code {
+            position: relative;
+        }
+
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background: #8be9fd;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .input-container {
+            padding: 2rem;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #chat-form {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .input-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        #user-input {
+            background: transparent;
+            border: none;
+            color: #e4e4e7;
+            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            outline: none;
+            font-family: inherit;
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+        }
+
+        #user-input::placeholder {
+            color: rgba(228, 228, 231, 0.5);
+        }
+
+        button {
+            background: linear-gradient(135deg, #8be9fd, #50fa7b);
+            color: #000;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            align-self: flex-end;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(139, 233, 253, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .stop-btn {
+            background: linear-gradient(135deg, #ff79c6, #ff5555);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            align-self: flex-end;
+        }
+
+        .stop-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 121, 198, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(139, 233, 253, 0.8);
+            font-style: italic;
+            margin-bottom: 1rem;
+        }
+
+        .typing-indicator.show {
+            display: flex;
+        }
+
+        .dots {
+            display: flex;
+            gap: 2px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: #8be9fd;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 3rem 2rem;
+            opacity: 0.7;
+        }
+
+        .welcome-message h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #8be9fd;
+        }
+
+        .welcome-message p {
+            color: rgba(228, 228, 231, 0.6);
+        }
+
+        .error-message {
+            background: rgba(255, 121, 198, 0.1);
+            border: 1px solid rgba(255, 121, 198, 0.3);
+            color: #ff79c6;
+        }
+
+        /* Auto-scroll indicator */
+        .scroll-control {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(139, 233, 253, 0.1);
+            border: 1px solid rgba(139, 233, 253, 0.3);
+            color: #8be9fd;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .scroll-control.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .scroll-control:hover {
+            background: rgba(139, 233, 253, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .container {
+                height: 100vh;
+                border: none;
+            }
+
+            .header {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.25rem;
+            }
+
+            #chat-box {
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .message {
+                gap: 0.75rem;
+            }
+
+            .avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+
+            .message-content {
+                padding: 0.875rem 1rem;
+            }
+
+            .user .message-content {
+                max-width: 85%;
+            }
+
+            .bot .message-content {
+                max-width: 95%;
+            }
+
+            pre {
+                padding: 1rem;
+                font-size: 0.8rem;
+                max-height: 300px;
+            }
+
+            .input-container {
+                padding: 1rem;
+            }
+
+            #chat-form {
+                padding: 0.75rem;
+                gap: 0.75rem;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .input-section {
+                order: 1;
+            }
+
+            button {
+                order: 2;
+                align-self: stretch;
+                justify-content: center;
+            }
+
+            #user-input {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+
+            button {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
+            }
+
+            .scroll-control {
+                bottom: 10px;
+                right: 10px;
+                padding: 0.4rem 0.8rem;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .welcome-message {
+                padding: 2rem 1rem;
+            }
+
+            .welcome-message h2 {
+                font-size: 1.25rem;
+            }
+
+            pre {
+                margin: 0.75rem 0;
+                max-height: 250px;
+            }
+
+            .copy-btn {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.75rem;
+            }
+
+            .header {
+                padding: 0.75rem;
+            }
+
+            #chat-box {
+                padding: 0.75rem;
+            }
+
+            .input-container {
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                🤖 VibeCoding AI
+            </h1>
+            <div class="status-indicator"></div>
+        </div>
+        
+        <div id="chat-box">
+            <div class="welcome-message">
+                <h2>Welcome to VibeCoding AI</h2>
+                <p>I'm here to help with coding, answer questions, or just chat! Ask me anything.</p>
+            </div>
+            <div class="scroll-control" id="scroll-control">
+                📍 Auto-scroll: ON
+            </div>
+        </div>
+        
+        <div class="input-container">
+            <div class="typing-indicator" id="typing-indicator">
+                <span>VibeCoding is thinking</span>
+                <div class="dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+            
+            <form id="chat-form">
+                <div class="input-section">
+                    <textarea id="user-input" placeholder="Type a message..." required rows="1"></textarea>
+                </div>
+                <button type="submit" id="send-btn">
+                    <span>Send</span>
+                    <span>→</span>
+                </button>
+                <button type="button" id="stop-btn" class="stop-btn hidden">
+                    <span>Stop</span>
+                    <span>⏹</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let isTyping = false;
+        let currentTypingController = null;
+        let autoScroll = true;
+        let userScrolledUp = false;
+        let lastScrollPosition = 0;
+
+        const chatBox = document.getElementById("chat-box");
+        const scrollControl = document.getElementById("scroll-control");
+
+        // Scroll detection
+        chatBox.addEventListener('scroll', function() {
+            const scrollTop = chatBox.scrollTop;
+            const scrollHeight = chatBox.scrollHeight;
+            const clientHeight = chatBox.clientHeight;
+            
+            // Check if user scrolled up manually
+            if (scrollTop < lastScrollPosition) {
+                userScrolledUp = true;
+                autoScroll = false;
+                updateScrollControl();
+            } else if (scrollTop + clientHeight >= scrollHeight - 50) {
+                // User is at or near bottom
+                userScrolledUp = false;
+                autoScroll = true;
+                updateScrollControl();
+            }
+            
+            lastScrollPosition = scrollTop;
+        });
+
+        // Update scroll control indicator
+        function updateScrollControl() {
+            if (userScrolledUp && isTyping) {
+                scrollControl.textContent = '📍 Scroll to follow';
+                scrollControl.classList.add('show');
+            } else {
+                scrollControl.classList.remove('show');
+            }
+        }
+
+        // Click to resume auto-scroll
+        scrollControl.addEventListener('click', function() {
+            autoScroll = true;
+            userScrolledUp = false;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollControl.classList.remove('show');
+        });
+
+        // Smart scroll function - only scrolls if auto-scroll is enabled
+        function smartScroll() {
+            if (autoScroll && !userScrolledUp) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+        // Auto-resize textarea
+        const textarea = document.getElementById("user-input");
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Stop button functionality
+        document.getElementById("stop-btn").addEventListener("click", function() {
+            if (isTyping && currentTypingController) {
+                currentTypingController.abort();
+                const sendBtn = document.getElementById("send-btn");
+                const stopBtn = document.getElementById("stop-btn");
+                const typingIndicator = document.getElementById("typing-indicator");
+                
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                typingIndicator.classList.remove('show');
+                isTyping = false;
+                currentTypingController = null;
+                scrollControl.classList.remove('show');
+                
+                // Add stopped message
+                const stoppedMessageEl = document.createElement('div');
+                stoppedMessageEl.className = 'message bot';
+                stoppedMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>VibeCoding:</strong><br>
+                        <em>Response stopped by user 🛑 Feel free to ask me anything else!</em>
+                    </div>
+                `;
+                chatBox.appendChild(stoppedMessageEl);
+                smartScroll();
+            }
+        });
+
+        // Chat form submission
+        document.getElementById("chat-form").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const input = document.getElementById("user-input");
+            const sendBtn = document.getElementById("send-btn");
+            const stopBtn = document.getElementById("stop-btn");
+            const typingIndicator = document.getElementById("typing-indicator");
+
+            const userMessage = input.value.trim();
+            if (!userMessage) return;
+
+            // Remove welcome message if it exists
+            const welcomeMessage = chatBox.querySelector('.welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+
+            // Add user message
+            const userMessageEl = document.createElement('div');
+            userMessageEl.className = 'message user';
+            userMessageEl.innerHTML = `
+                <div class="avatar user-avatar">👤</div>
+                <div class="message-content">
+                    <strong>You:</strong><br>${escapeHtml(userMessage)}
+                </div>
+            `;
+            chatBox.appendChild(userMessageEl);
+            
+            // Clear input
+            input.value = "";
+            input.style.height = 'auto';
+            
+            // Disable send button and show typing
+            sendBtn.disabled = true;
+            sendBtn.classList.add('hidden');
+            stopBtn.classList.remove('hidden');
+            typingIndicator.classList.add('show');
+            isTyping = true;
+            
+            smartScroll();
+
+            try {
+                // Call Flask backend
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: userMessage
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error (${response.status}): ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                // Hide typing indicator
+                typingIndicator.classList.remove('show');
+                
+                // Add bot message with typing animation
+                const botMessageEl = document.createElement('div');
+                botMessageEl.className = 'message bot';
+                botMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content">
+                        <strong>VibeCoding:</strong><br>
+                        <div class="bot-response"></div>
+                    </div>
+                `;
+                chatBox.appendChild(botMessageEl);
+                
+                const responseContainer = botMessageEl.querySelector('.bot-response');
+                currentTypingController = new AbortController();
+                await typeMessage(responseContainer, data.reply, currentTypingController.signal);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                typingIndicator.classList.remove('show');
+                
+                const errorMessageEl = document.createElement('div');
+                errorMessageEl.className = 'message bot';
+                errorMessageEl.innerHTML = `
+                    <div class="avatar bot-avatar">🤖</div>
+                    <div class="message-content error-message">
+                        <strong>VibeCoding:</strong><br>
+                        Oops! Something went wrong. Please make sure the Flask server is running and try again. 🔧
+                        <br><br><small>Error: ${error.message}</small>
+                    </div>
+                `;
+                chatBox.appendChild(errorMessageEl);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                isTyping = false;
+                currentTypingController = null;
+                scrollControl.classList.remove('show');
+                smartScroll();
+            }
+        });
+
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        // Type message with animation - MUCH FASTER NOW
+        async function typeMessage(container, message, abortSignal) {
+            // Check if message contains code blocks
+            const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g;
+            const parts = [];
+            let lastIndex = 0;
+            let match;
+
+            while ((match = codeBlockRegex.exec(message)) !== null) {
+                // Add text before code block
+                if (match.index > lastIndex) {
+                    parts.push({
+                        type: 'text',
+                        content: message.slice(lastIndex, match.index)
+                    });
+                }
+                
+                // Add code block
+                parts.push({
+                    type: 'code',
+                    language: match[1] || '',
+                    content: match[2]
+                });
+                
+                lastIndex = match.index + match[0].length;
+            }
+            
+            // Add remaining text
+            if (lastIndex < message.length) {
+                parts.push({
+                    type: 'text',
+                    content: message.slice(lastIndex)
+                });
+            }
+            
+            // If no code blocks found, treat as single text part
+            if (parts.length === 0) {
+                parts.push({
+                    type: 'text',
+                    content: message
+                });
+            }
+            
+            // Render each part
+            for (const part of parts) {
+                if (abortSignal && abortSignal.aborted) return;
+                
+                if (part.type === 'code') {
+                    const codeContainer = document.createElement('div');
+                    codeContainer.className = 'code-container';
+                    codeContainer.innerHTML = `
+                        <pre><code class="typing-code"></code></pre>
+                        <button class="copy-btn" onclick="copyCode(this)">📋 Copy</button>
+                    `;
+                    
+                    container.appendChild(codeContainer);
+                    const codeElement = codeContainer.querySelector('.typing-code');
+                    
+                    // Type code with cursor - MUCH FASTER
+                    await typeCode(codeElement, part.content, abortSignal);
+                } else {
+                    // Handle regular text - MUCH FASTER
+                    const textSpan = document.createElement('span');
+                    container.appendChild(textSpan);
+                    await typeText(textSpan, part.content.replace(/\n/g, '<br>'), 3, abortSignal); // Reduced from 15ms to 3ms
+                }
+            }
+        }
+
+        async function typeText(element, text, speed = 3, abortSignal) { // Much faster - was 15ms, now 3ms
+            // Handle HTML content (like <br> tags)
+            if (text.includes('<br>')) {
+                const parts = text.split('<br>');
+                for (let i = 0; i < parts.length; i++) {
+                    if (abortSignal && abortSignal.aborted) return;
+                    await typeText(element, parts[i], speed, abortSignal);
+                    if (i < parts.length - 1) {
+                        element.innerHTML += '<br>';
+                        await new Promise(resolve => setTimeout(resolve, speed));
+                    }
+                }
+                return;
+            }
+            
+            for (let i = 0; i < text.length; i++) {
+                if (abortSignal && abortSignal.aborted) return;
+                element.textContent += text[i];
+                await new Promise(resolve => setTimeout(resolve, speed));
+                smartScroll();
+            }
+        }
+
+        async function typeCode(element, code, abortSignal, speed = 2) { // Much faster - was 8ms, now 2ms
+            const cursor = document.createElement('span');
+            cursor.className = 'typing-cursor';
+            element.appendChild(cursor);
+            
+            for (let i = 0; i < code.length; i++) {
+                if (abortSignal && abortSignal.aborted) {
+                    if (cursor.parentNode) cursor.remove();
+                    return;
+                }
+                const char = code[i];
+                const textNode = document.createTextNode(char);
+                element.insertBefore(textNode, cursor);
+                
+                await new Promise(resolve => setTimeout(resolve, speed));
+                smartScroll();
+            }
+            
+            // Remove cursor after typing is complete
+            setTimeout(() => {
+                if (cursor.parentNode) {
+                    cursor.remove();
+                }
+            }, 500); // Reduced from 1000ms to 500ms
+        }
+
+        function copyCode(btn) {
+            const codeElement = btn.parentElement.querySelector('code');
+            const code = codeElement.textContent.replace(/\s*$/, ''); // Remove trailing cursor
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.innerHTML;
+                btn.innerHTML = "✅ Copied!";
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy code:', err);
+                btn.innerHTML = "❌ Failed";
+                setTimeout(() => {
+                    btn.innerHTML = "📋 Copy";
+                }, 2000);
+            });
+        }
+
+        // Enter key handling
+        document.getElementById("user-input").addEventListener("keydown", function(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById("chat-form").dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
