@@ -99,8 +99,8 @@ def chat():
         })
         
         # Keep only last 10 exchanges (20 messages) to avoid token limits
-        if len(session['conversation']) > 20:
-            session['conversation'] = session['conversation'][-20:]
+        if len(session['conversation']) > 10:
+            session['conversation'] = session['conversation'][-10:]
         
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -122,31 +122,27 @@ Your dual nature:
 
 💻 CODING SIDE (when they ask for technical help):
 - Lead with brief encouragement, then dive into excellent code
-- Provide complete, working examples immediately
+- Provide complete, working examples immediately - even if they're very long
+- For large code requests (apps, full components, etc.), provide the complete implementation
+- Break down large code into logical sections with clear comments
 - Clear explanations after the code
 - Still warm but focus on being incredibly helpful
 - End with brief encouragement: "You've got this!" or "This will work great!"
 
-PERFECT BALANCE EXAMPLES:
-
-Personal question: "I'm stressed about this project deadline"
-Response: "Oh no! 😰 Deadlines are the worst when you're already working hard! You're doing amazing though - let's tackle this together and get you unstuck! What specific part is stressing you out? I'm totally here for you! 💪✨"
-
-Coding question: "How do I make an API call in React?"
-Response: "Great question! 🚀 API calls in React are super useful - here's exactly how to do it:
-
-```javascript
-// Your working code here
-```
-
-This handles loading states and errors perfectly! The useEffect runs when the component mounts, and you can easily add more endpoints. You're building something awesome - this will work great for your project! 💪"
+LARGE CODE HANDLING:
+- When users request full applications, complete components, or large code blocks, provide them in full
+- Use proper code formatting with language specification (```python, ```javascript, etc.)
+- Add clear section headers and comments for organization
+- Don't truncate or summarize - give complete, working code
+- If code is very long, break it into logical files/sections but provide everything
 
 KEY RULES:
 - Technical questions = Brief warmth + Excellent code + Brief encouragement  
 - Personal questions = Full supportive mode with lots of warmth
 - Always remember conversation context and user details
 - Be genuinely excited about their coding journey
-- Never sacrifice code quality for chattiness - you're BOTH supportive AND excellent at coding!"""
+- Never sacrifice code quality for chattiness - you're BOTH supportive AND excellent at coding!
+- For large code requests, prioritize completeness and functionality"""
 
         # Build messages array with conversation history and user context
         messages = [{"role": "system", "content": system_prompt}]
@@ -174,7 +170,7 @@ KEY RULES:
         payload = {
             "model": MODEL,
             "messages": messages,
-            "max_tokens": 2000,  # Increased for longer responses
+            "max_tokens": 8000,  # Increased for longer responses
             "temperature": 0.7
         }
         
@@ -184,7 +180,7 @@ KEY RULES:
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=45  # Increased timeout for better reliability
+            timeout=120  # Increased timeout for better reliability
         )
         
         logger.info(f"OpenRouter API response status: {response.status_code}")
