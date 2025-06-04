@@ -558,21 +558,28 @@
             return div.innerHTML.replace(/\n/g, '<br>');
         }
 
-        // ENHANCED TYPE MESSAGE FUNCTION FOR LARGE CODE
+        // FIXED TYPE MESSAGE FUNCTION FOR PROPER CODE BLOCK DETECTION
         async function typeMessage(container, message, abortSignal) {
-            const codeBlockRegex = /```(\w*)\n?([\s\S]*?)\n?```/g;
+            // More robust regex that handles various code block formats
+            const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
             const parts = [];
             let lastIndex = 0;
             let match;
 
+            // Find all code blocks
             while ((match = codeBlockRegex.exec(message)) !== null) {
+                // Add text before code block
                 if (match.index > lastIndex) {
-                    parts.push({
-                        type: 'text',
-                        content: message.slice(lastIndex, match.index)
-                    });
+                    const textContent = message.slice(lastIndex, match.index).trim();
+                    if (textContent) {
+                        parts.push({
+                            type: 'text',
+                            content: textContent
+                        });
+                    }
                 }
                 
+                // Add code block
                 parts.push({
                     type: 'code',
                     language: match[1] || 'text',
@@ -582,13 +589,18 @@
                 lastIndex = match.index + match[0].length;
             }
             
+            // Add remaining text after last code block
             if (lastIndex < message.length) {
-                parts.push({
-                    type: 'text',
-                    content: message.slice(lastIndex)
-                });
+                const remainingText = message.slice(lastIndex).trim();
+                if (remainingText) {
+                    parts.push({
+                        type: 'text',
+                        content: remainingText
+                    });
+                }
             }
             
+            // If no code blocks found, treat entire message as text
             if (parts.length === 0) {
                 parts.push({
                     type: 'text',
@@ -596,57 +608,67 @@
                 });
             }
             
+            // Process each part
             for (const part of parts) {
                 if (abortSignal && abortSignal.aborted) return;
                 
                 if (part.type === 'code') {
-                    const codeContainer = document.createElement('div');
-                    codeContainer.className = 'code-container';
-                    
-                    // Check if code is very large (>100 lines)
-                    const lineCount = part.content.split('\n').length;
-                    if (lineCount > 100) {
-                        codeContainer.classList.add('large');
-                    }
-                    
-                    const pre = document.createElement('pre');
-                    const code = document.createElement('code');
-                    code.className = `language-${part.language}`;
-                    
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'copy-btn';
-                    copyBtn.innerHTML = '📋 Copy';
-                    copyBtn.onclick = function() { copyCode(this); };
-                    
-                    pre.appendChild(code);
-                    codeContainer.appendChild(pre);
-                    codeContainer.appendChild(copyBtn);
-                    
-                    // Add expand button for large code blocks
-                    if (lineCount > 100) {
-                        const expandBtn = document.createElement('button');
-                        expandBtn.className = 'expand-btn';
-                        expandBtn.innerHTML = '👆 Show full code';
-                        expandBtn.onclick = function() {
-                            codeContainer.classList.toggle('expanded');
-                            this.innerHTML = codeContainer.classList.contains('expanded') 
-                                ? '👇 Collapse code' 
-                                : '👆 Show full code';
-                        };
-                        codeContainer.appendChild(expandBtn);
-                    }
-                    
-                    container.appendChild(codeContainer);
-                    
-                    // Fast typing for code - very fast for large blocks
-                    await typeCode(code, part.content, abortSignal, lineCount > 50 ? 0.5 : 1);
-                    
+                    await createAndTypeCodeBlock(container, part, abortSignal);
                 } else {
-                    const textSpan = document.createElement('span');
-                    container.appendChild(textSpan);
-                    await typeText(textSpan, part.content.replace(/\n/g, '<br>'), 2, abortSignal);
+                    await createAndTypeText(container, part.content, abortSignal);
                 }
             }
+        }
+
+        async function createAndTypeCodeBlock(container, codePart, abortSignal) {
+            const codeContainer = document.createElement('div');
+            codeContainer.className = 'code-container';
+            
+            // Check if code is very large (>100 lines)
+            const lineCount = codePart.content.split('\n').length;
+            if (lineCount > 100) {
+                codeContainer.classList.add('large');
+            }
+            
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            code.className = `language-${codePart.language}`;
+            
+            // Create copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.innerHTML = '📋 Copy';
+            copyBtn.onclick = function() { copyCode(this); };
+            
+            pre.appendChild(code);
+            codeContainer.appendChild(pre);
+            codeContainer.appendChild(copyBtn);
+            
+            // Add expand button for large code blocks
+            if (lineCount > 100) {
+                const expandBtn = document.createElement('button');
+                expandBtn.className = 'expand-btn';
+                expandBtn.innerHTML = '👆 Show full code';
+                expandBtn.onclick = function() {
+                    codeContainer.classList.toggle('expanded');
+                    this.innerHTML = codeContainer.classList.contains('expanded') 
+                        ? '👇 Collapse code' 
+                        : '👆 Show full code';
+                };
+                codeContainer.appendChild(expandBtn);
+            }
+            
+            container.appendChild(codeContainer);
+            
+            // Type the code with speed based on size
+            const speed = lineCount > 50 ? 0.5 : 1;
+            await typeCode(code, codePart.content, abortSignal, speed);
+        }
+
+        async function createAndTypeText(container, text, abortSignal) {
+            const textSpan = document.createElement('span');
+            container.appendChild(textSpan);
+            await typeText(textSpan, text.replace(/\n/g, '<br>'), 2, abortSignal);
         }
 
         async function typeText(element, text, speed = 2, abortSignal) {
@@ -677,7 +699,7 @@
             element.appendChild(cursor);
             
             // For very large code blocks, type in chunks for better performance
-            const chunkSize = code.length > 1000 ? 5 : 1;
+            const chunkSize = code.length > 1000 ? 10 : 1;
             
             for (let i = 0; i < code.length; i += chunkSize) {
                 if (abortSignal && abortSignal.aborted) {
@@ -693,6 +715,7 @@
                 if (i % 50 === 0) smartScroll(); // Scroll less frequently
             }
             
+            // Remove cursor after a brief delay
             setTimeout(() => {
                 if (cursor.parentNode) {
                     cursor.remove();
