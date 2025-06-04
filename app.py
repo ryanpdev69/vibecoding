@@ -18,7 +18,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # BEST FREE CODING MODEL - DeepSeek R1 Distill Qwen 7B
 # This model has 92.8% pass rate on math problems and Codeforces rating 1189
-MODEL = "deepseek/deepseek-r1-distill-qwen-7b"  # 🥇 BEST for coding & reasoning
+MODEL = "meta-llama/llama-3.3-8b-instruct:free"  # 🥇 BEST for coding & reasoning
 
 # Alternative excellent free coding models (in order of preference):
 # MODEL = "qwen/qwen-2.5-coder-7b-instruct"     # 🥈 Specialized coding model  
