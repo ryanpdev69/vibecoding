@@ -15,7 +15,15 @@ app.secret_key = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-product
 
 # Use environment variable for security
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-MODEL = "meta-llama/llama-3.1-70b-instruct:free"  # 70B - Most intelligent free model!
+
+# BEST FREE CODING MODEL - DeepSeek R1 Distill Qwen 7B
+# This model has 92.8% pass rate on math problems and Codeforces rating 1189
+MODEL = "deepseek/deepseek-r1-distill-qwen-7b"  # 🥇 BEST for coding & reasoning
+
+# Alternative excellent free coding models (in order of preference):
+# MODEL = "qwen/qwen-2.5-coder-7b-instruct"     # 🥈 Specialized coding model  
+# MODEL = "deepseek/deepseek-chat"               # 🥉 General but strong at coding
+# MODEL = "qwen/qwen-2.5-7b-instruct"           # Good general model
 
 # Health check endpoint for Render
 @app.route("/health")
@@ -176,7 +184,7 @@ KEY RULES:
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=45  # Increased timeout for 70B model
+            timeout=45  # Increased timeout for better reliability
         )
         
         logger.info(f"OpenRouter API response status: {response.status_code}")
@@ -223,7 +231,7 @@ KEY RULES:
     
     except requests.exceptions.Timeout:
         logger.error("Request timed out")
-        return jsonify({"reply": "⚠️ Request timed out. The 70B model can be slower. Please try again."}), 500
+        return jsonify({"reply": "⚠️ Request timed out. Please try again."}), 500
     
     except requests.exceptions.RequestException as e:
         logger.error(f"Request error: {e}")
