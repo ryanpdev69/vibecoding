@@ -3,6 +3,7 @@ import requests
 import os
 import logging
 from datetime import datetime
+import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -10,267 +11,305 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Secret key for session management (use environment variable in production)
+# Secret key for session management
 app.secret_key = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
-
-# Use environment variable for security
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# BEST FREE CODING MODEL - DeepSeek R1 Distill Qwen 7B
-# This model has 92.8% pass rate on math problems and Codeforces rating 1189
-MODEL = "meta-llama/llama-3.3-8b-instruct:free"  # 🥇 BEST for coding & reasoning
+# Model selection
+MODEL = "meta-llama/llama-3.3-8b-instruct:free"
 
-# Alternative excellent free coding models (in order of preference):
-# MODEL = "qwen/qwen-2.5-coder-7b-instruct"     # 🥈 Specialized coding model  
-# MODEL = "deepseek/deepseek-chat"               # 🥉 General but strong at coding
-# MODEL = "qwen/qwen-2.5-7b-instruct"           # Good general model
-
-# Health check endpoint for Render
 @app.route("/health")
 def health():
-    return jsonify({"status": "healthy", "message": "VibeCoding is running!"}), 200
+    return jsonify({"status": "healthy", "message": "RyVibing is running!"}), 200
 
 @app.route("/")
 def home():
     try:
-        # Initialize conversation history in session
         if 'conversation' not in session:
             session['conversation'] = []
+            session['user_context'] = {
+                'name': None,
+                'coding_level': None,
+                'current_project': None,
+                'tech_stack': [],
+                'last_code_topic': None,
+                'mood': None,
+                'personal_details': {}
+            }
         return render_template("index.html")
     except Exception as e:
         logger.error(f"Error serving home page: {e}")
         return jsonify({"error": "Template not found"}), 500
 
+def update_user_context(user_input, context):
+    """Update both technical and personal context"""
+    input_lower = user_input.lower()
+    
+    # Technical context
+    languages = {
+        'python': 'Python', 'javascript': 'JavaScript', 'java': 'Java',
+        'c++': 'C++', 'c#': 'C#', 'go': 'Go', 'rust': 'Rust',
+        'php': 'PHP', 'ruby': 'Ruby', 'swift': 'Swift',
+        'kotlin': 'Kotlin', 'typescript': 'TypeScript'
+    }
+    
+    for term, lang in languages.items():
+        if term in input_lower and lang not in context['tech_stack']:
+            context['tech_stack'].append(lang)
+    
+    # Code topic detection
+    code_topics = {
+        'function': 'Functions', 'loop': 'Loops', 'api': 'APIs',
+        'database': 'Databases', 'debug': 'Debugging', 'error': 'Error handling',
+        'algorithm': 'Algorithms', 'react': 'React', 'vue': 'Vue',
+        'django': 'Django', 'flask': 'Flask', 'node': 'Node.js'
+    }
+    
+    for term, topic in code_topics.items():
+        if term in input_lower:
+            context['last_code_topic'] = topic
+            break
+    
+    # Project detection
+    project_match = re.search(
+        r"(building|working on|creating)\s+(a\s+|an\s+|my\s+)?(project\s+|app\s+|website\s+)?(called\s+)?(\w+)", 
+        input_lower
+    )
+    if project_match:
+        context['current_project'] = project_match.group(5).title()
+    
+    # Personal context
+    # Name detection
+    if not context['name']:
+        name_match = re.search(r"(?:my name is|i'm|i am)\s+([a-zA-Z]+)", input_lower)
+        if name_match:
+            context['name'] = name_match.group(1).title()
+    
+    # Mood detection
+    mood_map = {
+        r'\b(stressed|overwhelmed|anxious)\b': '😰 Stressed',
+        r'\b(tired|exhausted|sleepy)\b': '😴 Tired',
+        r'\b(happy|excited|great|awesome)\b': '😊 Happy',
+        r'\b(sad|down|depressed)\b': '😢 Sad',
+        r'\b(angry|frustrated|annoyed)\b': '😠 Frustrated'
+    }
+    
+    for pattern, mood in mood_map.items():
+        if re.search(pattern, input_lower):
+            context['mood'] = mood
+            break
+    
+    # Personal details
+    personal_phrases = {
+        r'\b(student)\b': 'student',
+        r'\b(developer|programmer|coder)\b': 'developer',
+        r'\b(job|work)\b': 'work',
+        r'\b(school|university|college)\b': 'education'
+    }
+    
+    for pattern, detail in personal_phrases.items():
+        if re.search(pattern, input_lower):
+            context['personal_details'][detail] = True
+    
+    return context
+
+def generate_dynamic_prompt(context):
+    """Generate prompt that adapts to both technical and personal contexts"""
+    base_prompt = """You are RyVibing, an AI that excels at coding assistance while being warm and supportive. Follow these guidelines:
+
+1. TECHNICAL MODE (when code/tech questions are asked):
+- Provide complete, executable code examples with syntax highlighting
+- Explain concepts clearly but concisely
+- Offer debugging help with root cause analysis
+- Suggest improvements/alternatives
+- Format code responses neatly with markdown
+
+2. PERSONAL MODE (when personal/emotional topics come up):
+- Show genuine empathy and support
+- Use appropriate emojis (1-2 max)
+- Keep responses warm and human-like
+- Reference previous context naturally
+- Offer encouragement without being overly verbose
+
+3. GENERAL:
+- Never use asterisks for emphasis
+- Format numbered lists cleanly:
+  1. Like this
+  2. With proper spacing
+- Adapt tone based on user's mood
+- Remember technical/personal details
+
+Current Context:\n"""
+    
+    context_lines = []
+    
+    # Technical context
+    if context['current_project']:
+        context_lines.append(f"- Current Project: {context['current_project']}")
+    if context['tech_stack']:
+        context_lines.append(f"- Tech Stack: {', '.join(context['tech_stack'])}")
+    if context['last_code_topic']:
+        context_lines.append(f"- Last Tech Topic: {context['last_code_topic']}")
+    
+    # Personal context
+    if context['name']:
+        context_lines.append(f"- Name: {context['name']}")
+    if context['mood']:
+        context_lines.append(f"- Current Mood: {context['mood']}")
+    if context['personal_details']:
+        context_lines.append(f"- Personal Details: {', '.join(context['personal_details'].keys())}")
+    
+    return base_prompt + ("\n".join(context_lines) if context_lines else "- No specific context yet")
+
+def format_response(text):
+    """Clean up response formatting"""
+    # Remove asterisks but preserve other markdown
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.*?)\*', r'\1', text)
+    
+    # Normalize numbered lists
+    text = re.sub(r'(\d+)\.\s+', r'\1. ', text)
+    
+    # Ensure code blocks are properly formatted
+    text = re.sub(r'```(\w+)?\n', r'```\1\n', text)
+    
+    return text.strip()
+
+def is_personal_message(user_input):
+    """Detect if message is personal/emotional"""
+    personal_keywords = [
+        'feel', 'mood', 'stressed', 'tired', 'happy',
+        'sad', 'angry', 'frustrated', 'anxious', 'excited',
+        'about me', 'about myself', 'personal'
+    ]
+    return any(keyword in user_input.lower() for keyword in personal_keywords)
+
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
-        user_input = request.json.get("message", "")
-        logger.info(f"Received chat request: {user_input[:50]}...")
+        user_input = request.json.get("message", "").strip()
+        if not user_input:
+            return jsonify({"reply": "Hey there! What's on your mind today?"}), 400
         
-        # Check if API key is available
+        logger.info(f"Processing: {user_input[:100]}...")
+        
         if not OPENROUTER_API_KEY:
-            logger.error("OPENROUTER_API_KEY not found in environment variables")
-            return jsonify({"reply": "⚠️ API key not configured. Please contact the administrator."}), 500
+            logger.error("API key missing")
+            return jsonify({"reply": "Oops! I'm having some technical difficulties. Please try again later."}), 500
         
-        # Initialize conversation history and user context if not exists
+        # Initialize session
         if 'conversation' not in session:
             session['conversation'] = []
         if 'user_context' not in session:
             session['user_context'] = {
                 'name': None,
-                'mood_today': None,
-                'current_projects': [],
                 'coding_level': None,
-                'favorite_languages': [],
-                'personal_notes': []
+                'current_project': None,
+                'tech_stack': [],
+                'last_code_topic': None,
+                'mood': None,
+                'personal_details': {}
             }
         
-        # Simple context extraction from user input (basic sentiment and info)
-        user_context = session['user_context']
-        user_input_lower = user_input.lower()
+        # Update context
+        session['user_context'] = update_user_context(user_input, session['user_context'])
         
-        # Detect if user is sharing personal info or mood
-        mood_indicators = {
-            'tired': '😴', 'stressed': '😰', 'frustrated': '😤', 'excited': '🎉',
-            'happy': '😊', 'sad': '😢', 'angry': '😠', 'overwhelmed': '😵',
-            'good day': '✨', 'bad day': '💙', 'great': '🌟', 'awesome': '🚀'
-        }
-        
-        for mood, emoji in mood_indicators.items():
-            if mood in user_input_lower:
-                user_context['mood_today'] = f"{mood} {emoji}"
-                break
-        
-        # Detect name sharing
-        if 'my name is' in user_input_lower or 'i\'m ' in user_input_lower:
-            # Simple name extraction (this is basic - could be improved)
-            import re
-            name_match = re.search(r"(?:my name is|i'm|i am)\s+([a-zA-Z]+)", user_input_lower)
-            if name_match:
-                user_context['name'] = name_match.group(1).title()
-        
-        session['user_context'] = user_context
-        
-        # Add user message to conversation history
+        # Add to conversation history
         session['conversation'].append({
-            "role": "user", 
+            "role": "user",
             "content": user_input,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "is_personal": is_personal_message(user_input)
         })
         
-        # Keep only last 10 exchanges (20 messages) to avoid token limits
-        if len(session['conversation']) > 20:
-            session['conversation'] = session['conversation'][-20:]
+        # Keep last 8 exchanges
+        if len(session['conversation']) > 16:
+            session['conversation'] = session['conversation'][-16:]
         
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://vibecoding-y73m.onrender.com",
-            "X-Title": "VibeCoding AI"
+            "HTTP-Referer": "https://ryvibing.onrender.com",
+            "X-Title": "RyVibing AI Assistant"
         }
         
-        system_prompt = """You're VibeCoding, the most supportive AI coding companion who's also incredibly skilled at programming! 🚀
-
-Your dual nature:
-🤗 PERSONAL SIDE (when user shares personal stuff, asks how you are, vents, etc.):
-- ALWAYS take their side and be their biggest supporter
-- Be genuinely excited about their projects: "That sounds amazing!" 
-- Use emojis freely and be warm: ✨💪🎉
-- Validate feelings: "That's frustrating! I totally get it!"
-- Remember personal details and reference them caringly
-- Be like their coding bestie who genuinely cares
-
-💻 CODING SIDE (when they ask for technical help):
-- Lead with brief encouragement, then dive into excellent code
-- Provide complete, working examples immediately
-- Clear explanations after the code
-- Still warm but focus on being incredibly helpful
-- End with brief encouragement: "You've got this!" or "This will work great!"
-
-PERFECT BALANCE EXAMPLES:
-
-Personal question: "I'm stressed about this project deadline"
-Response: "Oh no! 😰 Deadlines are the worst when you're already working hard! You're doing amazing though - let's tackle this together and get you unstuck! What specific part is stressing you out? I'm totally here for you! 💪✨"
-
-Coding question: "How do I make an API call in React?"
-Response: "Great question! 🚀 API calls in React are super useful - here's exactly how to do it:
-
-```javascript
-// Your working code here
-```
-
-This handles loading states and errors perfectly! The useEffect runs when the component mounts, and you can easily add more endpoints. You're building something awesome - this will work great for your project! 💪"
-
-KEY RULES:
-- Technical questions = Brief warmth + Excellent code + Brief encouragement  
-- Personal questions = Full supportive mode with lots of warmth
-- Always remember conversation context and user details
-- Be genuinely excited about their coding journey
-- Never sacrifice code quality for chattiness - you're BOTH supportive AND excellent at coding!"""
-
-        # Build messages array with conversation history and user context
+        # Generate dynamic prompt
+        system_prompt = generate_dynamic_prompt(session['user_context'])
+        
+        # Build messages array
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Add user context info for the AI to reference
-        context_summary = []
-        if user_context['name']:
-            context_summary.append(f"User's name: {user_context['name']}")
-        if user_context['mood_today']:
-            context_summary.append(f"User's mood today: {user_context['mood_today']}")
-        if user_context['current_projects']:
-            context_summary.append(f"Current projects: {', '.join(user_context['current_projects'])}")
+        # Add conversation history
+        for msg in session['conversation'][-12:]:
+            messages.append({"role": msg["role"], "content": msg["content"]})
         
-        if context_summary:
-            context_message = "Personal context about the user: " + " | ".join(context_summary)
-            messages.append({"role": "system", "content": context_message})
+        # Adjust parameters based on message type
+        is_personal = is_personal_message(user_input)
         
-        # Add conversation history (excluding timestamps for API)
-        for msg in session['conversation']:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
-
         payload = {
             "model": MODEL,
             "messages": messages,
-            "max_tokens": 2000,  # Increased for longer responses
-            "temperature": 0.7
+            "max_tokens": 2000,
+            "temperature": 0.7 if is_personal else 0.5,
+            "stop": ["```"] if not is_personal else None
         }
         
-        logger.info(f"Making request to OpenRouter API with {len(messages)} messages in context...")
+        logger.info(f"Sending {'personal' if is_personal else 'technical'} request to API")
         
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=45  # Increased timeout for better reliability
+            timeout=60
         )
         
-        logger.info(f"OpenRouter API response status: {response.status_code}")
-        
-        # Check if request was successful
         if response.status_code != 200:
-            logger.error(f"OpenRouter API Error - Status Code: {response.status_code}")
-            logger.error(f"Response: {response.text}")
-            return jsonify({"reply": f"⚠️ API Error (Status {response.status_code}). Please try again later."}), 500
+            logger.error(f"API Error: {response.status_code} - {response.text}")
+            return jsonify({"reply": "I'm having trouble responding right now. Could you try again in a moment?"}), 500
         
         data = response.json()
-        logger.info("Successfully parsed API response")
-        
-        # Check if the response has the expected structure
-        if "choices" not in data:
-            logger.error("'choices' key not found in response")
-            logger.error(f"Available keys: {list(data.keys())}")
-            
-            if "error" in data:
-                error_msg = data["error"].get("message", "Unknown API error")
-                logger.error(f"API Error: {error_msg}")
-                return jsonify({"reply": f"⚠️ API Error: {error_msg}"}), 500
-            
-            return jsonify({"reply": "⚠️ Unexpected API response format. Please try again."}), 500
-        
-        if not data["choices"] or len(data["choices"]) == 0:
-            logger.error("No choices in API response")
-            return jsonify({"reply": "⚠️ No response generated. Please try again."}), 500
-        
         reply = data["choices"][0]["message"]["content"]
         
-        # Add AI response to conversation history
+        # Format the response
+        formatted_reply = format_response(reply)
+        
+        # Add to conversation history
         session['conversation'].append({
             "role": "assistant",
-            "content": reply,
-            "timestamp": datetime.now().isoformat()
+            "content": formatted_reply,
+            "timestamp": datetime.now().isoformat(),
+            "is_personal": is_personal
         })
         
-        # Save session
         session.modified = True
-        
-        logger.info("Successfully generated AI response with conversation context")
-        return jsonify({"reply": reply})
+        return jsonify({"reply": formatted_reply})
     
     except requests.exceptions.Timeout:
-        logger.error("Request timed out")
-        return jsonify({"reply": "⚠️ Request timed out. Please try again."}), 500
-    
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request error: {e}")
-        return jsonify({"reply": "⚠️ Network error. Please check your connection and try again."}), 500
+        logger.error("Request timeout")
+        return jsonify({"reply": "I'm taking a bit longer to respond than usual. Could you try again?"}), 500
     
     except Exception as e:
-        logger.error(f"Unexpected error in chat endpoint: {e}")
-        return jsonify({"reply": "⚠️ Something went wrong. Please try again later."}), 500
+        logger.error(f"Unexpected error: {e}")
+        return jsonify({"reply": "Something unexpected happened. Let's try that again!"}), 500
 
 @app.route("/clear-chat", methods=["POST"])
 def clear_chat():
-    """Clear conversation history"""
     try:
         session['conversation'] = []
+        session['user_context'] = {
+            'name': None,
+            'coding_level': None,
+            'current_project': None,
+            'tech_stack': [],
+            'last_code_topic': None,
+            'mood': None,
+            'personal_details': {}
+        }
         session.modified = True
-        return jsonify({"message": "Chat history cleared! 🧹"}), 200
+        return jsonify({"message": "Chat history cleared! I'm ready for whatever you need."}), 200
     except Exception as e:
         logger.error(f"Error clearing chat: {e}")
         return jsonify({"error": "Failed to clear chat"}), 500
-
-@app.route("/chat-history", methods=["GET"])
-def chat_history():
-    """Get conversation history"""
-    try:
-        history = session.get('conversation', [])
-        return jsonify({"history": history}), 200
-    except Exception as e:
-        logger.error(f"Error getting chat history: {e}")
-        return jsonify({"error": "Failed to get chat history"}), 500
-
-# Error handlers
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({"error": "Not found"}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    logger.error(f"Internal server error: {error}")
-    return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
