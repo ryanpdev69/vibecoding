@@ -16,7 +16,7 @@
         }
 
         .container {
-            max-width: 1200px; /* Increased from default to handle wider code */
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             height: 100vh;
@@ -73,11 +73,26 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             word-wrap: break-word;
             overflow-wrap: break-word;
+            line-height: 1.6;
         }
 
         .message.user .message-content {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
+        }
+
+        /* Enhanced text rendering for AI responses */
+        .bot-response {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .bot-response p {
+            margin: 0 0 15px 0;
+        }
+
+        .bot-response p:last-child {
+            margin-bottom: 0;
         }
 
         /* ENHANCED CODE BLOCK STYLING FOR LARGE CODE */
@@ -100,7 +115,7 @@
             font-size: 13px;
             line-height: 1.5;
             overflow-x: auto;
-            max-height: 600px; /* Allow scrolling for very long code */
+            max-height: 600px;
             overflow-y: auto;
             white-space: pre;
             word-wrap: normal;
@@ -522,7 +537,7 @@
                 chatBox.appendChild(botMessageEl);
                 
                 const responseContainer = botMessageEl.querySelector('.bot-response');
-                await typeMessage(responseContainer, data.reply, controller.signal);
+                await displayMessage(responseContainer, data.reply, controller.signal);
                 
             } catch (error) {
                 if (error.name === 'AbortError') return; // User stopped the request
@@ -558,15 +573,15 @@
             return div.innerHTML.replace(/\n/g, '<br>');
         }
 
-        // FIXED TYPE MESSAGE FUNCTION FOR PROPER CODE BLOCK DETECTION
-        async function typeMessage(container, message, abortSignal) {
-            // More robust regex that handles various code block formats
-            const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+        // FIXED MESSAGE DISPLAY FUNCTION - No more aggressive code detection
+        async function displayMessage(container, message, abortSignal) {
+            // More precise code block regex - only matches proper code blocks with backticks
+            const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
             const parts = [];
             let lastIndex = 0;
             let match;
 
-            // Find all code blocks
+            // Find all properly formatted code blocks
             while ((match = codeBlockRegex.exec(message)) !== null) {
                 // Add text before code block
                 if (match.index > lastIndex) {
@@ -613,14 +628,14 @@
                 if (abortSignal && abortSignal.aborted) return;
                 
                 if (part.type === 'code') {
-                    await createAndTypeCodeBlock(container, part, abortSignal);
+                    await createAndDisplayCodeBlock(container, part, abortSignal);
                 } else {
-                    await createAndTypeText(container, part.content, abortSignal);
+                    await createAndDisplayText(container, part.content, abortSignal);
                 }
             }
         }
 
-        async function createAndTypeCodeBlock(container, codePart, abortSignal) {
+        async function createAndDisplayCodeBlock(container, codePart, abortSignal) {
             const codeContainer = document.createElement('div');
             codeContainer.className = 'code-container';
             
@@ -660,67 +675,77 @@
             
             container.appendChild(codeContainer);
             
-            // Type the code with speed based on size
-            const speed = lineCount > 50 ? 0.5 : 1;
-            await typeCode(code, codePart.content, abortSignal, speed);
+            // Display the code instantly for better user experience
+            code.textContent = codePart.content;
+            smartScroll();
         }
 
-        async function createAndTypeText(container, text, abortSignal) {
-            const textSpan = document.createElement('span');
-            container.appendChild(textSpan);
-            await typeText(textSpan, text.replace(/\n/g, '<br>'), 2, abortSignal);
+        async function createAndDisplayText(container, text, abortSignal) {
+            const textDiv = document.createElement('div');
+            container.appendChild(textDiv);
+            
+            // Format the text properly with paragraphs and line breaks
+            const formattedText = text
+                .split('\n\n')
+                .map(paragraph => paragraph.trim())
+                .filter(paragraph => paragraph.length > 0)
+                .join('\n\n');
+            
+            // Use faster typing for better UX - or display instantly for very long responses
+            if (formattedText.length > 500) {
+                // For long responses, display instantly with proper formatting
+                textDiv.innerHTML = formatTextResponse(formattedText);
+                smartScroll();
+            } else {
+                // For shorter responses, use typing effect
+                await typeText(textDiv, formattedText, 1, abortSignal);
+            }
         }
 
-        async function typeText(element, text, speed = 2, abortSignal) {
-            if (text.includes('<br>')) {
-                const parts = text.split('<br>');
-                for (let i = 0; i < parts.length; i++) {
+        function formatTextResponse(text) {
+            // Convert double line breaks to paragraph breaks
+            // Convert single line breaks to <br> tags
+            return text
+                .split('\n\n')
+                .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+                .join('');
+        }
+
+        async function typeText(element, text, speed = 1, abortSignal) {
+            // Handle paragraph formatting during typing
+            const paragraphs = text.split('\n\n');
+            
+            for (let p = 0; p < paragraphs.length; p++) {
+                if (abortSignal && abortSignal.aborted) return;
+                
+                const paragraph = paragraphs[p].trim();
+                if (!paragraph) continue;
+                
+                const pElement = document.createElement('p');
+                pElement.style.margin = '0 0 15px 0';
+                element.appendChild(pElement);
+                
+                // Type each character of the paragraph
+                const lines = paragraph.split('\n');
+                for (let l = 0; l < lines.length; l++) {
                     if (abortSignal && abortSignal.aborted) return;
-                    await typeText(element, parts[i], speed, abortSignal);
-                    if (i < parts.length - 1) {
-                        element.innerHTML += '<br>';
-                        await new Promise(resolve => setTimeout(resolve, speed));
+                    
+                    const line = lines[l];
+                    for (let i = 0; i < line.length; i++) {
+                        if (abortSignal && abortSignal.aborted) return;
+                        pElement.textContent += line[i];
+                        if (i % 5 === 0) { // Reduce scroll frequency
+                            await new Promise(resolve => setTimeout(resolve, speed));
+                            smartScroll();
+                        }
+                    }
+                    
+                    // Add line break if not the last line
+                    if (l < lines.length - 1) {
+                        pElement.innerHTML += '<br>';
                     }
                 }
-                return;
             }
-            
-            for (let i = 0; i < text.length; i++) {
-                if (abortSignal && abortSignal.aborted) return;
-                element.textContent += text[i];
-                await new Promise(resolve => setTimeout(resolve, speed));
-                if (i % 10 === 0) smartScroll(); // Scroll less frequently for performance
-            }
-        }
-
-        async function typeCode(element, code, abortSignal, speed = 1) {
-            const cursor = document.createElement('span');
-            cursor.className = 'typing-cursor';
-            element.appendChild(cursor);
-            
-            // For very large code blocks, type in chunks for better performance
-            const chunkSize = code.length > 1000 ? 10 : 1;
-            
-            for (let i = 0; i < code.length; i += chunkSize) {
-                if (abortSignal && abortSignal.aborted) {
-                    if (cursor.parentNode) cursor.remove();
-                    return;
-                }
-                
-                const chunk = code.slice(i, i + chunkSize);
-                const textNode = document.createTextNode(chunk);
-                element.insertBefore(textNode, cursor);
-                
-                await new Promise(resolve => setTimeout(resolve, speed));
-                if (i % 50 === 0) smartScroll(); // Scroll less frequently
-            }
-            
-            // Remove cursor after a brief delay
-            setTimeout(() => {
-                if (cursor.parentNode) {
-                    cursor.remove();
-                }
-            }, 300);
         }
 
         function copyCode(btn) {
